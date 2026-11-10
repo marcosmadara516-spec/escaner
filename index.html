@@ -68,7 +68,7 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
 .it{display:grid;grid-template-columns:76px 1fr;gap:14px;padding:14px max(16px,env(safe-area-inset-right,0px)) 14px max(16px,env(safe-area-inset-left,0px));border-bottom:1px solid var(--line)}
 .it.done{opacity:.55}
 .foto{width:76px;height:76px;border-radius:8px;background:var(--surface-2);overflow:hidden;display:grid;place-items:center;font-family:var(--f-display);font-weight:700;font-size:1.6rem;color:var(--muted)}
-.foto img{width:100%;height:100%;object-fit:cover;display:block}
+.foto img{width:100%;height:100%;object-fit:contain;background:#fff;display:block}
 .it .cab{display:flex;align-items:center;gap:8px}
 .it .fv{font-size:.85rem;color:var(--muted);flex:1}
 .cat{font-size:.72rem;font-weight:700;letter-spacing:.06em;background:var(--surface-2);color:var(--muted);border-radius:5px;padding:2px 7px}
@@ -162,7 +162,7 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
     <button class="chip" data-f="atendidos" aria-pressed="false">Atendidos</button>
   </div>
   <div id="lista" class="lista"><div class="cargando">Cargando…</div></div>
-  <p class="muted" style="text-align:center;font-size:.8rem;margin:20px 0 0">Escáner en vivo · Versión 3</p>
+  <p class="muted" style="text-align:center;font-size:.8rem;margin:20px 0 0">Escáner en vivo · Versión 4</p>
 </div>
 
 <button class="fab" id="fab" type="button" aria-label="Escanear código de barras">
@@ -209,7 +209,7 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
 <section class="pant" id="p-reg" hidden aria-labelledby="p-reg-t">
   <div class="pant-h"><b id="p-reg-t">Registrar producto</b><button class="btn" id="reg-x" type="button">Cancelar</button></div>
   <div class="pant-b"><div class="in gut" id="reg-in"></div></div>
-  <input id="file-foto" type="file" accept="image/*" capture="environment" hidden>
+  <input id="file-foto" type="file" accept="image/*" hidden>
 </section>
 
 <!-- Lista de opciones -->
@@ -227,7 +227,7 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const ls={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
 /* ===== CONFIGURACIÓN: pega aquí la URL de tu Apps Script (termina en /exec) y la misma clave de Escaner.gs ===== */
-const API_URL = "https://script.google.com/macros/s/AKfycbwJRPREY1EtfPTd0y8TIqX2R_aUTWQe8Qujkm6vruYeYDtcGxRUKlZv7MKQ7U6j4-7T/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbyYml1hT_aFnKDcuzdFBJPJIOUXQSz8etL7Hh5nJbz1CxtpbkkGUOnWT8AyiSaz-b0/exec";
 const CLAVE   = "CCN";
 /* =============================================================================================================== */
 async function api(fn,...a){
@@ -391,9 +391,9 @@ $("file-cod").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(
   $("leyendo").hidden=true;
   if(cod){if(navigator.vibrate)try{navigator.vibrate(80)}catch(e){}cerrar("p-cam");iniciarRegistro(cod)}
   else pantallaCodigo("No encontré el código en la foto. Toma otra más de cerca, con el código derecho y buena luz, o escríbelo.")};
-async function miniatura(file){const img=await cargarImagen(file);const max=160;const s=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight));
+async function miniatura(file){const img=await cargarImagen(file);const max=320;const s=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight));
   const c=document.createElement("canvas");c.width=Math.round(img.naturalWidth*s);c.height=Math.round(img.naturalHeight*s);
-  c.getContext("2d").drawImage(img,0,0,c.width,c.height);let q=.7,u=c.toDataURL("image/jpeg",q);while(u.length>40000&&q>.3){q-=.1;u=c.toDataURL("image/jpeg",q)}return u}
+  c.getContext("2d").drawImage(img,0,0,c.width,c.height);const g=c.getContext("2d");g.globalCompositeOperation="destination-over";g.fillStyle="#fff";g.fillRect(0,0,c.width,c.height);let q=.82,u=c.toDataURL("image/jpeg",q);while(u.length>40000&&q>.35){q-=.08;u=c.toDataURL("image/jpeg",q)}return u}
 
 /* ---------- registrar ---------- */
 function iniciarRegistro(cod){
@@ -408,7 +408,7 @@ function pintarRegistro(){
     ret=`<span class="hint" style="color:var(--${nivel(n)==="vencido"?"red":nivel(n)==="critico"?"amber":nivel(n)==="pronto"?"yellow":"green"})">${nv<0?"Esta fecha ya pasó · ":""}Se retira el ${fCorta(fr)} (${txtRet(n).toLowerCase()})</span>`}
   $("reg-in").innerHTML=`
     <div class="tarjeta">
-      <div class="foto">${foto?`<img src="${esc(foto)}" alt="">`:esc((R.producto||"?").slice(0,1))}<button type="button" id="r-foto" aria-label="Tomar foto del producto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></button></div>
+      <div class="foto">${foto?`<img src="${esc(foto)}" alt="">`:esc((R.producto||"?").slice(0,1))}<button type="button" id="r-foto" aria-label="Poner foto del producto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></button></div>
       <div>
         <div class="mini">${R.codigo?"Código "+esc(R.codigo):"Sin código de barras"}</div>
         <div class="nm">${R.producto?esc(R.presentacion||R.producto):"Producto nuevo"}</div>
