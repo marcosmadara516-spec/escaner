@@ -256,7 +256,7 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const ls={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
 /* ===== CONFIGURACIÓN: pega aquí la URL de tu Apps Script (termina en /exec) y la misma clave de Escaner.gs ===== */
-const API_URL = "https://script.google.com/macros/s/AKfycbx1_L_wU_65863MQ1iz3luNGrt4GW5KuMz1CrQD9Sz5GUmkkew1Bqp_Gk6z1A25kHsS/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycby-gPn826zjml3samW0nt4Crk_cLBXznKqVAtHtuQa3j_wYORlQLD-t1o-4I0NpYp3l/exec";
 const CLAVE   = "CCN";
 /* =============================================================================================================== */
 async function api(fn,...a){
