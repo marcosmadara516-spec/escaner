@@ -170,7 +170,7 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
     <button class="chip" data-f="atendidos" aria-pressed="false">Atendidos</button>
   </div>
   <div id="lista" class="lista"><div class="cargando">Cargando…</div></div>
-  <p class="muted" style="text-align:center;font-size:.8rem;margin:20px 0 0">Escáner en vivo · Versión 7</p>
+  <p class="muted" style="text-align:center;font-size:.8rem;margin:20px 0 0">Escáner en vivo · Versión 9</p>
 </div>
 
 <button class="fab" id="fab" type="button" aria-label="Escanear código de barras">
@@ -533,15 +533,35 @@ function fotoOriginal(img){const max=640;const s=Math.min(1,max/Math.max(img.nat
   g.fillStyle="#fff";g.fillRect(0,0,c.width,c.height);g.drawImage(img,0,0,c.width,c.height);return comprimir(c)}
 /* ---------- recorte inteligente (IA en el teléfono, como Photoroom) ---------- */
 // Usa el archivo recortador.js (subido junto a este index.html). El modelo se descarga la primera vez (~45 MB) y luego queda guardado.
-let REC=null;
+/* Modo rápido del recortador: usa coi.js para poder trabajar con todos los núcleos del teléfono (se recarga una sola vez). */
+(function(){if(window.crossOriginIsolated||!("serviceWorker" in navigator)||!window.isSecureContext)return;
+  navigator.serviceWorker.register("coi.js").then(()=>{if(navigator.serviceWorker.controller)return;
+    let ya=null;try{ya=sessionStorage.getItem("coi")}catch(e){}if(ya)return;try{sessionStorage.setItem("coi","1")}catch(e){}
+    navigator.serviceWorker.ready.then(()=>location.reload())}).catch(()=>{})})();
+let REC=null,IA_LISTA=false;
 function cargarRecortador(){if(!REC)REC=import("./recortador.js").catch(()=>import("https://esm.sh/@imgly/background-removal@1.4.5")).catch(e=>{REC=null;throw e});return REC}
 function aBlob(img,max){const s=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight));const c=document.createElement("canvas");c.width=Math.round(img.naturalWidth*s);c.height=Math.round(img.naturalHeight*s);
   const g=c.getContext("2d");g.imageSmoothingQuality="high";g.drawImage(img,0,0,c.width,c.height);return new Promise(ok=>c.toBlob(ok,"image/jpeg",.92))}
+// Cuenta los MB que se van descargando del recortador (para mostrar el avance real).
+const DESC={mb:0,ult:0};
+(function(){const f0=window.fetch.bind(window);
+  window.fetch=async(url,opt)=>{const r=await f0(url,opt);const u=String(url&&url.url||url);
+    if(u.indexOf("background-removal-data")<0||!r.ok||!r.body)return r;
+    const lector=r.body.getReader(),partes=[];
+    for(;;){const {done,value}=await lector.read();if(done)break;partes.push(value);DESC.mb+=value.length/1048576;DESC.ult=Date.now()}
+    return new Response(new Blob(partes),{status:r.status,headers:r.headers})}})();
 async function quitarFondoIA(img,avance){
-  const m=await cargarRecortador();const ent=await aBlob(img,1280);
-  const opc=(pp)=>{const o={model:"small",output:{format:"image/png"},progress:(k,a,t)=>{if(String(k).indexOf("fetch")===0&&t)avance(Math.round(a/t*100))}};if(pp)o.publicPath=pp;return o};
-  let png;try{png=await m.removeBackground(ent,opc())}catch(e){png=await m.removeBackground(ent,opc("https://unpkg.com/@imgly/background-removal-data@1.4.5/dist/"))}
-  avance(-1);const cut=await cargarImagen(png);return componer(cut)}
+  avance({fase:"cargar"});const m=await cargarRecortador();const ent=await aBlob(img,800);
+  let fase=IA_LISTA?"recortar":"descargar",t0=Date.now();DESC.mb=0;DESC.ult=Date.now();
+  const opc=(pp)=>{const o={model:"small",output:{format:"image/png"},progress:(k)=>{if(k==="compute:inference"&&fase!=="recortar"){fase="recortar";t0=Date.now()}}};if(pp)o.publicPath=pp;return o};
+  const vigia=new Promise((_,mal)=>{const iv=setInterval(()=>{
+      if(fase==="listo"){clearInterval(iv);return}
+      const seg=Math.round((Date.now()-t0)/1000);avance({fase,mb:DESC.mb,seg});
+      if(fase==="descargar"&&Date.now()-DESC.ult>60000){clearInterval(iv);mal(new Error("La descarga del recortador se detuvo."))}
+      if(fase==="recortar"&&seg>120){clearInterval(iv);mal(new Error("El teléfono tardó demasiado en recortar."))}},500)});
+  const trabajo=(async()=>{try{return await m.removeBackground(ent,opc())}catch(e){fase="descargar";DESC.ult=Date.now();return await m.removeBackground(ent,opc("https://unpkg.com/@imgly/background-removal-data@1.4.5/dist/"))}})();
+  try{const png=await Promise.race([trabajo,vigia]);fase="listo";IA_LISTA=true;const cut=await cargarImagen(png);return componer(cut)}
+  catch(e){fase="listo";throw e}}
 // Limpia la máscara (bordes nítidos, sin manchas sueltas) y centra el producto sobre blanco con sombra suave.
 function componer(cut){
   const w=cut.naturalWidth,h=cut.naturalHeight,N=w*h;const c=document.createElement("canvas");c.width=w;c.height=h;
@@ -569,13 +589,17 @@ function abrirEditorFoto(img,desdeCamara){
   FE.orig=fotoOriginal(img);FE.sinFondo=undefined;FE.usarSin=true;$("fe-sw").checked=true;$("fe-sw").disabled=true;
   $("fe-img").src=FE.orig;$("fe-img").classList.add("fe-proc");$("fe-est").textContent="Recortando el producto…";$("fe-otra").textContent=desdeCamara?"📷 Tomar otra":"🖼️ Elegir otra";$("fe-otra").dataset.cam=desdeCamara?"1":"";
   abrir("p-fedit");
-  const avance=p=>{if(t!==FE.turno)return;$("fe-est").textContent=p<0?"Recortando el producto…":"Preparando el recortador (solo la primera vez): "+p+" %"};
+  const avance=p=>{if(t!==FE.turno)return;$("fe-est").textContent=
+    p.fase==="cargar"?"Abriendo el recortador…":
+    p.fase==="descargar"?(p.mb<.5?"Preparando el recortador… "+p.seg+" s":"Descargando el recortador (solo la primera vez): "+Math.min(55,Math.round(p.mb))+" de 55 MB. Usa WiFi."):
+    "Recortando el producto… "+p.seg+" s (puede tardar hasta 1 minuto)"};
   const fin=(r,ia)=>{if(t!==FE.turno)return;$("fe-img").classList.remove("fe-proc");FE.sinFondo=r;$("fe-sw").disabled=!r;
-    if(r){$("fe-est").textContent=ia?"Listo. Si no se ve bien, apaga “Quitar fondo”.":"Recorte básico (sin conexión al recortador). Si no se ve bien, apaga “Quitar fondo”."}
+    if(r){$("fe-est").textContent=ia?"Listo. Si no se ve bien, apaga “Quitar fondo”.":(FE.motivo?FE.motivo+" ":"")+"Se usó el recorte básico. Si no se ve bien, apaga “Quitar fondo”."}
     else{FE.usarSin=false;$("fe-sw").checked=false;$("fe-est").textContent="No pude separar el producto del fondo. Usa la foto así o toma otra con el producto más cerca."}
     pintarFE()};
-  setTimeout(async()=>{let r=null;
-    try{r=await quitarFondoIA(img,avance);if(r){fin(r,true);return}}catch(e){console.warn("Recortador:",e)}
+  setTimeout(async()=>{let r=null,motivo="";
+    try{r=await quitarFondoIA(img,avance);if(r){fin(r,true);return}}catch(e){console.warn("Recortador:",e);motivo=(e&&e.message)||""}
+    FE.motivo=motivo;
     if(t!==FE.turno)return;try{r=quitarFondo(img)}catch(e){r=null}fin(r,false)},60)}
 function pintarFE(){$("fe-img").src=FE.usarSin&&FE.sinFondo?FE.sinFondo:FE.orig}
 $("fe-sw").onchange=e=>{FE.usarSin=e.target.checked;pintarFE()};
