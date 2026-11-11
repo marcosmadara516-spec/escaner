@@ -140,7 +140,8 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
 .hoja-in{background:var(--surface);width:100%;max-width:520px;border-radius:16px 16px 0 0;padding:18px max(16px,env(safe-area-inset-right,0px)) calc(14px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:10px}
 .hoja-in b{font-family:var(--f-display);font-size:1.25rem}
 .fe-prev{background:#fff;border:1px solid var(--line);border-radius:14px;aspect-ratio:1/1;max-width:100%;display:grid;place-items:center;overflow:hidden}
-.fe-prev img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+.fe-prev img{max-width:100%;max-height:100%;object-fit:contain;display:block;transition:opacity .3s}
+.fe-prev img.fe-proc{opacity:.45}
 .fe-sw{display:flex;gap:12px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;cursor:pointer}
 .fe-sw input{width:22px;height:22px;margin-top:2px;flex:none;accent-color:var(--accent)}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(100px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 18px;border-radius:999px;font-weight:600;font-size:.9rem;z-index:40;max-width:calc(100% - 32px);text-align:center}
@@ -169,7 +170,7 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
     <button class="chip" data-f="atendidos" aria-pressed="false">Atendidos</button>
   </div>
   <div id="lista" class="lista"><div class="cargando">Cargando…</div></div>
-  <p class="muted" style="text-align:center;font-size:.8rem;margin:20px 0 0">Escáner en vivo · Versión 6</p>
+  <p class="muted" style="text-align:center;font-size:.8rem;margin:20px 0 0">Escáner en vivo · Versión 7</p>
 </div>
 
 <button class="fab" id="fab" type="button" aria-label="Escanear código de barras">
@@ -233,7 +234,7 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
   <div class="pant-h"><b id="p-fedit-t">Foto del producto</b><button class="btn" id="fe-x" type="button">Cancelar</button></div>
   <div class="pant-b"><div class="in gut">
     <div class="fe-prev"><img id="fe-img" alt="Vista previa de la foto"></div>
-    <label class="fe-sw"><input type="checkbox" id="fe-sw" checked> <span><b>Quitar fondo</b><br><span class="mini">Deja el producto sobre fondo blanco. Funciona mejor con fondo liso.</span></span></label>
+    <label class="fe-sw"><input type="checkbox" id="fe-sw" checked> <span><b>Quitar fondo</b><br><span class="mini">Recorta el producto y lo deja sobre fondo blanco.</span></span></label>
     <div class="mini" id="fe-est"></div>
     <button class="btn pri big" id="fe-ok" type="button">Usar esta foto</button>
     <button class="btn big" id="fe-otra" type="button">📷 Tomar otra</button>
@@ -256,7 +257,7 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const ls={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
 /* ===== CONFIGURACIÓN: pega aquí la URL de tu Apps Script (termina en /exec) y la misma clave de Escaner.gs ===== */
-const API_URL = "https://script.google.com/macros/s/AKfycby-gPn826zjml3samW0nt4Crk_cLBXznKqVAtHtuQa3j_wYORlQLD-t1o-4I0NpYp3l/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbx1_L_wU_65863MQ1iz3luNGrt4GW5KuMz1CrQD9Sz5GUmkkew1Bqp_Gk6z1A25kHsS/exec";
 const CLAVE   = "CCN";
 /* =============================================================================================================== */
 async function api(fn,...a){
@@ -530,20 +531,58 @@ function comprimir(c){
 function fotoOriginal(img){const max=640;const s=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight));
   const c=document.createElement("canvas");c.width=Math.round(img.naturalWidth*s);c.height=Math.round(img.naturalHeight*s);const g=c.getContext("2d");g.imageSmoothingQuality="high";
   g.fillStyle="#fff";g.fillRect(0,0,c.width,c.height);g.drawImage(img,0,0,c.width,c.height);return comprimir(c)}
-const FE={orig:"",sinFondo:null,usarSin:true};
+/* ---------- recorte inteligente (IA en el teléfono, como Photoroom) ---------- */
+// Usa el archivo recortador.js (subido junto a este index.html). El modelo se descarga la primera vez (~45 MB) y luego queda guardado.
+let REC=null;
+function cargarRecortador(){if(!REC)REC=import("./recortador.js").catch(()=>import("https://esm.sh/@imgly/background-removal@1.4.5")).catch(e=>{REC=null;throw e});return REC}
+function aBlob(img,max){const s=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight));const c=document.createElement("canvas");c.width=Math.round(img.naturalWidth*s);c.height=Math.round(img.naturalHeight*s);
+  const g=c.getContext("2d");g.imageSmoothingQuality="high";g.drawImage(img,0,0,c.width,c.height);return new Promise(ok=>c.toBlob(ok,"image/jpeg",.92))}
+async function quitarFondoIA(img,avance){
+  const m=await cargarRecortador();const ent=await aBlob(img,1280);
+  const opc=(pp)=>{const o={model:"small",output:{format:"image/png"},progress:(k,a,t)=>{if(String(k).indexOf("fetch")===0&&t)avance(Math.round(a/t*100))}};if(pp)o.publicPath=pp;return o};
+  let png;try{png=await m.removeBackground(ent,opc())}catch(e){png=await m.removeBackground(ent,opc("https://unpkg.com/@imgly/background-removal-data@1.4.5/dist/"))}
+  avance(-1);const cut=await cargarImagen(png);return componer(cut)}
+// Limpia la máscara (bordes nítidos, sin manchas sueltas) y centra el producto sobre blanco con sombra suave.
+function componer(cut){
+  const w=cut.naturalWidth,h=cut.naturalHeight,N=w*h;const c=document.createElement("canvas");c.width=w;c.height=h;
+  const g=c.getContext("2d",{willReadFrequently:true});g.drawImage(cut,0,0);const id=g.getImageData(0,0,w,h),d=id.data;
+  const lab=new Int32Array(N),q=new Int32Array(N);let mejor=0,mejorN=0,n=0;
+  for(let i=0;i<N;i++){if(lab[i]||d[i*4+3]<60)continue;n++;let cnt=0,qh=0,qt=0;q[qt++]=i;lab[i]=n;
+    while(qh<qt){const p=q[qh++],x=p%w;cnt++;for(const v of [x>0?p-1:-1,x<w-1?p+1:-1,p-w,p+w]){if(v>=0&&v<N&&!lab[v]&&d[v*4+3]>=60){lab[v]=n;q[qt++]=v}}}
+    if(cnt>mejorN){mejorN=cnt;mejor=n}}
+  if(!mejor||mejorN/N<.02)return null;
+  let x0=w,y0=h,x1=0,y1=0;
+  for(let i=0;i<N;i++){const j=i*4+3;let a=d[j];
+    if(lab[i]&&lab[i]!==mejor)a=0;else if(!lab[i]&&a>0){const x=i%w;const vec=[x>0?i-1:-1,x<w-1?i+1:-1,i-w,i+w];if(!vec.some(v=>v>=0&&v<N&&lab[v]===mejor))a=0}
+    a=Math.max(0,Math.min(255,Math.round((a-40)*255/170)));d[j]=a;
+    if(a>128){const x=i%w,y=(i/w)|0;if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}}
+  g.putImageData(id,0,0);
+  const cw=x1-x0+1,ch=y1-y0+1,OUT=640,caja=OUT*.84,k=Math.min(caja/cw,caja/ch,2.5);
+  const o=document.createElement("canvas");o.width=o.height=OUT;const og=o.getContext("2d");og.fillStyle="#fff";og.fillRect(0,0,OUT,OUT);
+  og.imageSmoothingEnabled=true;og.imageSmoothingQuality="high";const dx=(OUT-cw*k)/2,dy=(OUT-ch*k)/2;
+  og.save();og.shadowColor="rgba(0,0,0,.16)";og.shadowBlur=22;og.shadowOffsetY=10;og.drawImage(c,x0,y0,cw,ch,dx,dy,cw*k,ch*k);og.restore();
+  og.drawImage(c,x0,y0,cw,ch,dx,dy,cw*k,ch*k);
+  return comprimir(o)}
+const FE={orig:"",sinFondo:null,usarSin:true,turno:0};
 function abrirEditorFoto(img,desdeCamara){
+  const t=++FE.turno;
   FE.orig=fotoOriginal(img);FE.sinFondo=undefined;FE.usarSin=true;$("fe-sw").checked=true;$("fe-sw").disabled=true;
-  $("fe-img").src=FE.orig;$("fe-est").textContent="Quitando el fondo…";$("fe-otra").textContent=desdeCamara?"📷 Tomar otra":"🖼️ Elegir otra";$("fe-otra").dataset.cam=desdeCamara?"1":"";
+  $("fe-img").src=FE.orig;$("fe-img").classList.add("fe-proc");$("fe-est").textContent="Recortando el producto…";$("fe-otra").textContent=desdeCamara?"📷 Tomar otra":"🖼️ Elegir otra";$("fe-otra").dataset.cam=desdeCamara?"1":"";
   abrir("p-fedit");
-  setTimeout(()=>{let r=null;try{r=quitarFondo(img)}catch(e){r=null}FE.sinFondo=r;$("fe-sw").disabled=!r;
-    if(r){$("fe-est").textContent="Listo. Si no se ve bien, apaga “Quitar fondo”.";}else{FE.usarSin=false;$("fe-sw").checked=false;$("fe-est").textContent="No pude separar el producto del fondo. Prueba con el producto sobre un fondo liso, o usa la foto así."}
-    pintarFE()},60)}
+  const avance=p=>{if(t!==FE.turno)return;$("fe-est").textContent=p<0?"Recortando el producto…":"Preparando el recortador (solo la primera vez): "+p+" %"};
+  const fin=(r,ia)=>{if(t!==FE.turno)return;$("fe-img").classList.remove("fe-proc");FE.sinFondo=r;$("fe-sw").disabled=!r;
+    if(r){$("fe-est").textContent=ia?"Listo. Si no se ve bien, apaga “Quitar fondo”.":"Recorte básico (sin conexión al recortador). Si no se ve bien, apaga “Quitar fondo”."}
+    else{FE.usarSin=false;$("fe-sw").checked=false;$("fe-est").textContent="No pude separar el producto del fondo. Usa la foto así o toma otra con el producto más cerca."}
+    pintarFE()};
+  setTimeout(async()=>{let r=null;
+    try{r=await quitarFondoIA(img,avance);if(r){fin(r,true);return}}catch(e){console.warn("Recortador:",e)}
+    if(t!==FE.turno)return;try{r=quitarFondo(img)}catch(e){r=null}fin(r,false)},60)}
 function pintarFE(){$("fe-img").src=FE.usarSin&&FE.sinFondo?FE.sinFondo:FE.orig}
 $("fe-sw").onchange=e=>{FE.usarSin=e.target.checked;pintarFE()};
 $("fe-x").onclick=()=>cerrar("p-fedit");
 $("fe-ok").onclick=()=>{if(!S.reg)return cerrar("p-fedit");S.reg.fotoNueva=FE.usarSin&&FE.sinFondo?FE.sinFondo:FE.orig;cerrar("p-fedit");pintarRegistro()};
 $("fe-otra").onclick=()=>{cerrar("p-fedit");$($("fe-otra").dataset.cam?"file-foto-cam":"file-foto").click()};
-function opcionesFoto(){abrir("p-fop")}
+function opcionesFoto(){abrir("p-fop");cargarRecortador().catch(()=>{})}
 $("fop-cam").onclick=()=>{cerrar("p-fop");$("file-foto-cam").click()};
 $("fop-gal").onclick=()=>{cerrar("p-fop");$("file-foto").click()};
 $("fop-x").onclick=()=>cerrar("p-fop");
