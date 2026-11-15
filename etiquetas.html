@@ -17,7 +17,7 @@
   header a { color:#fff; font-size:13px; opacity:.85; }
   main { max-width:640px; margin:0 auto; padding:12px; }
   .tarjeta { background:#fff; border:1px solid var(--borde); border-radius:12px; padding:12px; margin-bottom:12px; }
-  .camara { position:relative; background:#000; border-radius:10px; overflow:hidden; aspect-ratio:4/3; display:none; }
+  .camara { position:relative; background:#000; border-radius:10px; overflow:hidden; aspect-ratio:4/3; display:none; margin-bottom:10px; }
   .camara.on { display:block; }
   .camara video { width:100%; height:100%; object-fit:cover; }
   .camara .mira { position:absolute; left:10%; right:10%; top:38%; height:24%; border:3px solid #4fc3f7; border-radius:8px; box-shadow:0 0 0 9999px rgba(0,0,0,.35); }
@@ -25,23 +25,24 @@
   button { font:inherit; border:0; border-radius:10px; padding:11px 14px; cursor:pointer; background:var(--azul2); color:#fff; font-weight:600; }
   button.sec { background:#e3e8ef; color:var(--texto); }
   button.peligro { background:#fdecea; color:var(--rojo); }
-  button:disabled { opacity:.5; }
   input, select { font:inherit; padding:10px; border:1px solid var(--borde); border-radius:10px; width:100%; background:#fff; }
   .grande { width:100%; padding:14px; font-size:17px; }
   .estado { font-size:13px; color:#5b6573; margin-top:8px; min-height:18px; }
-  .item { display:grid; grid-template-columns:1fr auto; gap:10px; border-top:1px solid var(--borde); padding:12px 0; }
+  .item { border-top:1px solid var(--borde); padding:12px 0; }
   .item:first-child { border-top:0; }
+  .item .arriba { display:flex; gap:10px; align-items:flex-start; }
+  .item .info { flex:1; min-width:0; }
   .item .nom { font-weight:700; font-size:15px; }
-  .item .cod { font-size:12px; color:#5b6573; font-family:ui-monospace,monospace; }
-  .item .controles { display:flex; gap:8px; margin-top:8px; align-items:center; flex-wrap:wrap; }
-  .precio { width:120px; }
+  .item .cod { font-size:12px; color:#5b6573; font-family:ui-monospace,monospace; margin-top:2px; }
+  .item canvas { width:150px; height:75px; flex:none; }
+  .item .controles { display:flex; gap:8px; margin-top:10px; align-items:center; flex-wrap:wrap; }
+  .precio { width:130px; }
   .precio input { font-weight:700; }
   .copias { display:flex; align-items:center; border:1px solid var(--borde); border-radius:10px; overflow:hidden; }
   .copias button { background:#fff; color:var(--texto); border-radius:0; padding:8px 12px; font-size:18px; }
   .copias span { min-width:30px; text-align:center; font-weight:700; }
   .guardado { font-size:12px; color:var(--verde); }
   .error { color:var(--rojo); }
-  .vista { width:60mm; height:30mm; transform:scale(.55); transform-origin:top right; margin-left:-27mm; margin-bottom:-13.5mm; box-shadow:0 0 0 1px #bbb; }
   .vacio { text-align:center; color:#5b6573; padding:20px 8px; }
   .pie { position:fixed; left:0; right:0; bottom:0; background:#fff; border-top:1px solid var(--borde); padding:10px 12px calc(10px + env(safe-area-inset-bottom)); z-index:5; }
   .pie .in { max-width:640px; margin:0 auto; display:grid; gap:8px; }
@@ -50,23 +51,13 @@
   .aviso.ver { opacity:1; }
   .version { text-align:center; font-size:12px; color:#8a94a3; margin:16px 0; }
 
-  /* ===== Etiqueta 60 × 30 mm ===== */
-  .etq { width:60mm; height:30mm; background:#fff; color:#000; padding:1.3mm 2mm 1mm; display:flex; flex-direction:column; overflow:hidden; font-family:Arial,Helvetica,sans-serif; }
-  .etq .e-nom { font-size:2.75mm; line-height:1.15; font-weight:700; text-transform:uppercase; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; height:6.35mm; }
-  .etq .e-precio { font-size:7.2mm; line-height:1; font-weight:900; text-align:center; margin:.6mm 0 .5mm; white-space:nowrap; }
-  .etq .e-precio small { font-size:4mm; font-weight:700; }
-  .etq .e-bar { flex:1; min-height:0; display:flex; justify-content:center; }
-  .etq .e-bar svg { height:100%; width:auto; max-width:100%; }
-  .etq .e-num { font-size:2.5mm; line-height:1; text-align:center; letter-spacing:.35mm; font-family:"Courier New",monospace; margin-top:.4mm; }
-
   #impresion { display:none; }
-  .hoja-carta { display:grid; grid-template-columns:repeat(3,60mm); grid-auto-rows:30mm; column-gap:2mm; row-gap:1mm; }
-  .hoja-carta .etq { outline:0.2mm dashed #bbb; }
+  #impresion img { width:60mm; height:30mm; display:block; }
+  .hoja-carta { display:grid; grid-template-columns:repeat(3,60mm); grid-auto-rows:30mm; column-gap:6mm; row-gap:1mm; padding:16mm 0 0 11.95mm; }
   @media print {
     body { background:#fff; padding:0; }
     header, main, .pie, .aviso { display:none !important; }
     #impresion { display:block; }
-    .etq { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
     .salto { break-after:page; page-break-after:always; }
   }
 </style>
@@ -99,19 +90,19 @@
     <div id="lista"></div>
   </div>
 
-  <div class="version">Etiquetas CCN y CDN · Versión 1</div>
+  <div class="version">Etiquetas CCN y CDN · Versión 2</div>
 </main>
 
 <div class="pie">
   <div class="in">
     <select id="formato">
-      <option value="termica">Térmica · rollo de 60 × 30 mm</option>
-      <option value="carta">Hoja carta · 24 por hoja</option>
+      <option value="carta">Hoja carta · 24 etiquetas de 6 × 3 cm</option>
+      <option value="termica">Térmica · una etiqueta de 6 × 3 cm por página</option>
     </select>
     <div class="botones">
-      <button id="btnImprimir">🖨️ Imprimir (0)</button>
-      <button class="sec" id="btnPdf">PDF</button>
+      <button id="btnPdf">⬇️ Descargar PDF</button>
       <button class="sec" id="btnCompartir">Enviar</button>
+      <button class="sec" id="btnImprimir">Imprimir</button>
     </div>
   </div>
 </div>
@@ -128,10 +119,10 @@ const CLAVE   = 'CCN';
 const $ = id => document.getElementById(id);
 const CLAVE_LISTA = 'etiquetas_lista_v1';
 const CLAVE_CATALOGO = 'etiquetas_catalogo_v1';
-const CLAVE_FORMATO = 'etiquetas_formato_v1';
+const CLAVE_FORMATO = 'etiquetas_formato_v2';
 
-let catalogo = {};          // código -> {c, cat, p, pres, precio}
-let lista = [];             // [{c, copias, nombre, precio}]
+let catalogo = {};   // código -> {c, cat, p, pres, precio}
+let lista = [];      // [{c, copias, nombre, precio}]
 let flujo = null, detector = null, lectorZx = null, timerScan = null;
 let ultimo = { c: '', t: 0 };
 
@@ -146,12 +137,21 @@ function dinero(n) {
   if (n === '' || n == null || isNaN(v)) return '';
   return v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
-function nombreDe(it) {
-  if (it.nombre) return it.nombre;
-  const k = catalogo[it.c];
-  if (!k) return '';
-  return (k.pres || k.p || '').toUpperCase();
+const UNIDADES = new Set(['ML','L','LT','LTS','G','GR','KG','OZ','LB','CC','UD','UDS','UND']);
+function titulo(s) { // "CERVEZA TOÑA LATA 350 ML" -> "Cerveza Toña Lata 350 ml"
+  s = String(s || '').trim();
+  if (!s || s !== s.toUpperCase()) return s;
+  return s.toLowerCase().split(/(\s+)/).map(w => {
+    if (UNIDADES.has(w.toUpperCase()) || /^\d/.test(w)) return w;
+    return w.charAt(0).toUpperCase() + w.slice(1);
+  }).join('');
 }
+function nombreDe(it) {
+  if (it.nombre) return titulo(it.nombre);
+  const k = catalogo[it.c];
+  return k ? titulo(k.pres || k.p || '') : '';
+}
+function marcaDe(it) { const k = catalogo[it.c]; return k && k.p ? titulo(k.p) : ''; }
 function precioDe(it) { return it.precio != null && it.precio !== '' ? it.precio : (catalogo[it.c] ? catalogo[it.c].precio : null); }
 
 async function api(datos) {
@@ -161,39 +161,95 @@ async function api(datos) {
   return j;
 }
 
+/* ---------- letra Poppins (archivos en el mismo repositorio) ---------- */
+const LETRA = { familia: 'Arial', pdf: null };
+async function cargarLetra() {
+  try {
+    const bajar = async f => { const r = await fetch(f); if (!r.ok) throw new Error(f); return r.arrayBuffer(); };
+    const [neg, reg] = await Promise.all([bajar('Poppins-Bold.ttf'), bajar('Poppins-Regular.ttf')]);
+    document.fonts.add(await new FontFace('PoppinsEtq', neg, { weight: '700' }).load());
+    document.fonts.add(await new FontFace('PoppinsEtq', reg, { weight: '400' }).load());
+    const b64 = buf => { let s = ''; const u = new Uint8Array(buf); for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); };
+    LETRA.familia = 'PoppinsEtq';
+    LETRA.pdf = { bold: b64(neg), normal: b64(reg) };
+  } catch (e) { console.warn('Sin Poppins, se usa Arial/Helvetica', e); }
+}
+
 /* ---------- código de barras ---------- */
 function digitoEAN(s) { let t = 0; for (let i = 0; i < s.length; i++) t += (+s[i]) * ((s.length - i) % 2 ? 3 : 1); return (10 - t % 10) % 10; }
-function formatoBarra(c) {
-  if (/^\d{13}$/.test(c) && digitoEAN(c.slice(0, 12)) == c[12]) return 'EAN13';
-  if (/^\d{8}$/.test(c) && digitoEAN(c.slice(0, 7)) == c[7]) return 'EAN8';
-  return 'CODE128';
-}
-function dibujarBarra(destino, c) {
-  const op = { format: formatoBarra(c), displayValue: false, margin: 0, width: 2, height: 60, flat: true };
-  try { JsBarcode(destino, c, op); } catch (e) { op.format = 'CODE128'; JsBarcode(destino, c, op); }
-  if (destino.tagName.toLowerCase() === 'svg') {
-    const w = parseFloat(destino.getAttribute('width')), h = parseFloat(destino.getAttribute('height'));
-    destino.setAttribute('viewBox', `0 0 ${w} ${h}`);
-    destino.setAttribute('preserveAspectRatio', 'none');
-    destino.removeAttribute('width'); destino.removeAttribute('height');
-    destino.style.removeProperty('transform');
-    destino.dataset.ancho = w; destino.dataset.alto = h;
+function barra(c) { // devuelve formato, valor y texto visible
+  if (/^\d{13}$/.test(c) && digitoEAN(c.slice(0, 12)) == c[12]) {
+    if (c[0] === '0') return { fmt: 'UPC', val: c.slice(1), ver: c.slice(1) };   // UPC-A como en el ejemplo
+    return { fmt: 'EAN13', val: c, ver: c };
   }
+  if (/^\d{8}$/.test(c) && digitoEAN(c.slice(0, 7)) == c[7]) return { fmt: 'EAN8', val: c, ver: c };
+  return { fmt: 'CODE128', val: c, ver: c };
 }
-function crearEtiqueta(it) {
-  const div = document.createElement('div');
-  div.className = 'etq';
-  const p = precioDe(it);
-  div.innerHTML = `<div class="e-nom">${esc(nombreDe(it) || it.c)}</div>
-    <div class="e-precio">${p != null && p !== '' ? '<small>C$</small> ' + dinero(p) : '&nbsp;'}</div>
-    <div class="e-bar"><svg></svg></div>
-    <div class="e-num">${esc(it.c)}</div>`;
-  const svg = div.querySelector('svg');
-  dibujarBarra(svg, it.c);
-  // ancho del código: proporcional, máx. todo el ancho útil (56 mm)
-  const mm = Math.min(56, (parseFloat(svg.dataset.ancho) / 2) * 0.33 * 1.05);
-  svg.style.width = Math.max(mm, 30) + 'mm';
-  return div;
+function modulosBarra(c) { // cadena de 1 y 0 (1 = barra negra)
+  const b = barra(c), obj = {};
+  try { JsBarcode(obj, b.val, { format: b.fmt, flat: true }); }
+  catch (e) { JsBarcode(obj, c, { format: 'CODE128', flat: true }); }
+  return obj.encodings.map(x => x.data).join('');
+}
+
+/* ---------- DISEÑO DE LA ETIQUETA (medidas en mm, tomadas del ejemplo) ---------- */
+const PT = 0.3528; // 1 punto = 0.3528 mm
+const lienzoMedir = document.createElement('canvas').getContext('2d');
+function medir(txt, negrita, pt) { lienzoMedir.font = `${negrita ? 700 : 400} ${pt * PT * 10}px ${LETRA.familia}`; return lienzoMedir.measureText(txt).width / 10; }
+function ajustar(txt, negrita, ptMax, ptMin, ancho) { // achica la letra para que quepa; si no, corta con …
+  let pt = ptMax, w = medir(txt, negrita, pt);
+  if (w > ancho) { pt = Math.max(ptMin, ptMax * ancho / w); w = medir(txt, negrita, pt); }
+  while (w > ancho && txt.length > 1) { txt = txt.slice(0, -2).trimEnd() + '…'; w = medir(txt, negrita, pt); }
+  return { txt, pt };
+}
+function disenar(it) {
+  const ops = [];
+  const nombre = nombreDe(it) || it.c, marca = marcaDe(it), b = barra(it.c), p = precioDe(it);
+  // borde
+  ops.push({ t: 'rect', x: 0.125, y: 0.125, w: 59.75, h: 29.75, lw: 0.25 });
+  // nombre (negrita, arriba)
+  const n = ajustar(nombre, true, 8.5, 6.2, 56.1);
+  ops.push({ t: 'texto', s: n.txt, x: 1.95, y: 3.98, pt: n.pt, neg: true, al: 'left' });
+  // marca (izquierda) y código (derecha)
+  const anchoCod = medir(b.ver, false, 6.9);
+  ops.push({ t: 'texto', s: b.ver, x: 58.1, y: 7.45, pt: 6.9, neg: false, al: 'right' });
+  if (marca) { const m = ajustar(marca, true, 6.9, 5.5, 56.1 - anchoCod - 2); ops.push({ t: 'texto', s: m.txt, x: 2.0, y: 7.45, pt: m.pt, neg: true, al: 'left' }); }
+  // código de barras centrado
+  const mods = modulosBarra(it.c);
+  const mod = Math.min(0.41, 52 / mods.length);
+  ops.push({ t: 'barras', x: 30 - mods.length * mod / 2, y: 9.31, h: 8.47, mod, data: mods });
+  // precio grande abajo
+  if (p != null && p !== '') {
+    const pr = ajustar('C$' + dinero(p), true, 19, 12, 56);
+    ops.push({ t: 'texto', s: pr.txt, x: 30, y: 27.95, pt: pr.pt, neg: true, al: 'center' });
+  }
+  return ops;
+}
+function dibujarCanvas(it, k) { // k = píxeles por mm
+  const cv = document.createElement('canvas'); cv.width = Math.round(60 * k); cv.height = Math.round(30 * k);
+  const x = cv.getContext('2d');
+  x.fillStyle = '#fff'; x.fillRect(0, 0, cv.width, cv.height); x.fillStyle = '#000'; x.strokeStyle = '#000';
+  disenar(it).forEach(o => {
+    if (o.t === 'rect') { x.lineWidth = o.lw * k; x.strokeRect(o.x * k, o.y * k, o.w * k, o.h * k); }
+    else if (o.t === 'texto') { x.font = `${o.neg ? 700 : 400} ${o.pt * PT * k}px ${LETRA.familia}`; x.textAlign = o.al; x.textBaseline = 'alphabetic'; x.fillText(o.s, o.x * k, o.y * k); }
+    else if (o.t === 'barras') { recorrerBarras(o, (bx, bw) => x.fillRect(bx * k, o.y * k, bw * k, o.h * k)); }
+  });
+  return cv;
+}
+function recorrerBarras(o, pintar) {
+  let i = 0; const d = o.data;
+  while (i < d.length) { if (d[i] === '1') { let j = i; while (d[j] === '1') j++; pintar(o.x + i * o.mod, (j - i) * o.mod); i = j; } else i++; }
+}
+function dibujarPdf(doc, it, ox, oy) {
+  doc.setTextColor(0); doc.setDrawColor(0); doc.setFillColor(0);
+  disenar(it).forEach(o => {
+    if (o.t === 'rect') { doc.setLineWidth(o.lw); doc.rect(ox + o.x, oy + o.y, o.w, o.h, 'S'); }
+    else if (o.t === 'texto') {
+      doc.setFont(LETRA.pdf ? 'Poppins' : 'helvetica', o.neg ? 'bold' : 'normal'); doc.setFontSize(o.pt);
+      doc.text(o.s, ox + o.x, oy + o.y, { align: o.al });
+    }
+    else if (o.t === 'barras') { recorrerBarras(o, (bx, bw) => doc.rect(ox + bx, oy + o.y, bw, o.h, 'F')); }
+  });
 }
 
 /* ---------- catálogo ---------- */
@@ -220,42 +276,42 @@ function agregar(codigo) {
   if (ya) { ya.copias++; aviso(`${nombreDe(ya) || c} · ${ya.copias} copias`); }
   else {
     lista.unshift({ c, copias: 1, nombre: '', precio: null });
-    const k = catalogo[c];
-    aviso(k ? (nombreDe({ c }) || c) : `Código nuevo ${c}: escribe el nombre`);
+    aviso(catalogo[c] ? (nombreDe({ c }) || c) : `Código nuevo ${c}: escribe el nombre`);
   }
   guardarLocal(CLAVE_LISTA, lista);
   pintar();
 }
+function vistaPrevia(it) { const cv = dibujarCanvas(it, 8); cv.title = 'Así queda la etiqueta'; return cv; }
 
 function pintar() {
   const cont = $('lista');
   const total = lista.reduce((s, x) => s + x.copias, 0);
-  $('tituloLista').textContent = `Productos (${lista.length})`;
-  $('btnImprimir').textContent = `🖨️ Imprimir (${total})`;
+  $('tituloLista').textContent = `Productos (${lista.length}) · ${total} etiquetas`;
+  $('btnPdf').textContent = `⬇️ Descargar PDF`;
   if (!lista.length) { cont.innerHTML = '<div class="vacio">Escanea productos para hacer sus etiquetas.</div>'; return; }
   cont.innerHTML = '';
   lista.forEach((it, i) => {
-    const conocido = !!catalogo[it.c] && !!(catalogo[it.c].p || catalogo[it.c].pres);
+    const k = catalogo[it.c];
+    const conocido = !!k && !!(k.p || k.pres);
     const p = precioDe(it);
     const fila = document.createElement('div');
     fila.className = 'item';
     fila.innerHTML = `
-      <div>
-        ${conocido && !it.editNombre
-          ? `<div class="nom">${esc(nombreDe(it))}</div>`
-          : `<input class="inNombre" placeholder="Nombre del producto" value="${esc(nombreDe(it))}">`}
-        <div class="cod">${esc(it.c)}${catalogo[it.c] && catalogo[it.c].cat ? ' · ' + esc(catalogo[it.c].cat) : ''}</div>
-        <div class="controles">
-          <div class="precio"><input class="inPrecio" type="number" inputmode="decimal" step="0.01" min="0" placeholder="C$ precio" value="${p != null ? p : ''}"></div>
-          <div class="copias"><button class="menos">−</button><span>${it.copias}</span><button class="mas">+</button></div>
-          <button class="peligro quitar" style="padding:8px 12px">✕</button>
-          <span class="guardado"></span>
+      <div class="arriba">
+        <div class="info">
+          ${conocido ? `<div class="nom">${esc(nombreDe(it))}</div>`
+                     : `<input class="inNombre" placeholder="Nombre del producto" value="${esc(it.nombre || (k ? k.pres : '') || '')}">`}
+          <div class="cod">${esc(it.c)}${k && k.cat ? ' · ' + esc(k.cat) : ''}</div>
         </div>
+        <span class="vista"></span>
       </div>
-      <div class="vista-cont"></div>`;
-    const vista = crearEtiqueta(it); vista.classList.add('vista');
-    fila.querySelector('.vista-cont').appendChild(vista);
-
+      <div class="controles">
+        <div class="precio"><input class="inPrecio" type="number" inputmode="decimal" step="0.01" min="0" placeholder="Precio C$" value="${p != null ? p : ''}"></div>
+        <div class="copias"><button class="menos">−</button><span>${it.copias}</span><button class="mas">+</button></div>
+        <button class="peligro quitar" style="padding:8px 12px">✕</button>
+        <span class="guardado"></span>
+      </div>`;
+    fila.querySelector('.vista').appendChild(vistaPrevia(it));
     fila.querySelector('.menos').onclick = () => { if (it.copias > 1) { it.copias--; guardarLocal(CLAVE_LISTA, lista); pintar(); } };
     fila.querySelector('.mas').onclick = () => { it.copias++; guardarLocal(CLAVE_LISTA, lista); pintar(); };
     fila.querySelector('.quitar').onclick = () => { lista.splice(i, 1); guardarLocal(CLAVE_LISTA, lista); pintar(); };
@@ -266,11 +322,14 @@ function pintar() {
     cont.appendChild(fila);
   });
 }
-
+function refrescarVistas() { // sin perder lo que se está escribiendo
+  $('lista').querySelectorAll('.item').forEach((f, i) => { const it = lista[i]; if (!it) return; const v = f.querySelector('.vista'); v.innerHTML = ''; v.appendChild(vistaPrevia(it)); });
+}
 async function guardarPrecio(it, fila) {
+  refrescarVistas();
   const p = precioDe(it);
   const marca = fila.querySelector('.guardado');
-  if (p == null || p === '' || isNaN(p)) { pintarUno(); return; }
+  if (p == null || p === '' || isNaN(p)) return;
   marca.textContent = 'Guardando…'; marca.classList.remove('error');
   try {
     await api({ accion: 'etq_precio', codigo: it.c, precio: p, producto: it.nombre || '' });
@@ -282,93 +341,73 @@ async function guardarPrecio(it, fila) {
   } catch (e) {
     marca.textContent = 'No se guardó: ' + e.message; marca.classList.add('error');
   }
-  pintarUno();
-}
-function pintarUno() { // actualiza vistas previas sin perder el foco
-  const filas = $('lista').querySelectorAll('.item');
-  filas.forEach((f, i) => { const it = lista[i]; if (!it) return; const c = f.querySelector('.vista-cont'); c.innerHTML = ''; const v = crearEtiqueta(it); v.classList.add('vista'); c.appendChild(v); });
 }
 
-/* ---------- validación antes de imprimir ---------- */
-function etiquetasParaImprimir() {
-  const sinPrecio = lista.filter(x => precioDe(x) == null || precioDe(x) === '');
+/* ---------- etiquetas a sacar ---------- */
+function etiquetasParaSacar() {
   if (!lista.length) { aviso('No hay productos en la lista'); return null; }
-  if (sinPrecio.length && !confirm(`${sinPrecio.length} producto(s) no tienen precio. ¿Imprimir de todos modos?`)) return null;
+  const sinPrecio = lista.filter(x => precioDe(x) == null || precioDe(x) === '');
+  if (sinPrecio.length && !confirm(`${sinPrecio.length} producto(s) no tienen precio. ¿Seguir de todos modos?`)) return null;
   const todas = [];
   lista.slice().reverse().forEach(it => { for (let k = 0; k < it.copias; k++) todas.push(it); });
   return todas;
 }
-
-/* ---------- imprimir ---------- */
-function imprimir() {
-  const todas = etiquetasParaImprimir(); if (!todas) return;
-  const formato = $('formato').value;
-  const zona = $('impresion'); zona.innerHTML = '';
-  if (formato === 'termica') {
-    $('estiloPagina').textContent = '@page { size: 60mm 30mm; margin: 0; }';
-    todas.forEach((it, i) => { const e = crearEtiqueta(it); if (i < todas.length - 1) e.classList.add('salto'); zona.appendChild(e); });
-  } else {
-    $('estiloPagina').textContent = '@page { size: letter; margin: 0; } #impresion .hoja-carta { padding: 16mm 0 0 16mm; }';
-    for (let i = 0; i < todas.length; i += 24) {
-      const hoja = document.createElement('div'); hoja.className = 'hoja-carta';
-      if (i + 24 < todas.length) hoja.classList.add('salto');
-      todas.slice(i, i + 24).forEach(it => hoja.appendChild(crearEtiqueta(it)));
-      zona.appendChild(hoja);
-    }
-  }
-  setTimeout(() => window.print(), 150);
-}
+const CARTA = { x0: 11.95, y0: 16, pasoX: 66, pasoY: 31, cols: 3, filas: 8 };
 
 /* ---------- PDF ---------- */
 function hacerPdf() {
-  const todas = etiquetasParaImprimir(); if (!todas) return null;
+  const todas = etiquetasParaSacar(); if (!todas) return null;
   if (!window.jspdf) { aviso('El generador de PDF aún no carga, intenta de nuevo'); return null; }
   const { jsPDF } = window.jspdf;
   const termica = $('formato').value === 'termica';
   const doc = termica ? new jsPDF({ orientation: 'landscape', unit: 'mm', format: [60, 30], compress: true })
                       : new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter', compress: true });
-  const lienzo = document.createElement('canvas');
+  if (LETRA.pdf) {
+    doc.addFileToVFS('Poppins-Bold.ttf', LETRA.pdf.bold); doc.addFont('Poppins-Bold.ttf', 'Poppins', 'bold');
+    doc.addFileToVFS('Poppins-Regular.ttf', LETRA.pdf.normal); doc.addFont('Poppins-Regular.ttf', 'Poppins', 'normal');
+  }
+  const porHoja = CARTA.cols * CARTA.filas;
   todas.forEach((it, i) => {
-    let x = 0, y = 0;
-    if (termica) { if (i) doc.addPage([60, 30], 'landscape'); }
+    if (termica) { if (i) doc.addPage([60, 30], 'landscape'); dibujarPdf(doc, it, 0, 0); }
     else {
-      const pos = i % 24; if (i && !pos) doc.addPage('letter', 'portrait');
-      x = 16 + (pos % 3) * 62; y = 16 + Math.floor(pos / 3) * 31;
-      doc.setDrawColor(190); doc.setLineDashPattern([1, 1], 0); doc.setLineWidth(0.2); doc.rect(x, y, 60, 30); doc.setLineDashPattern([], 0);
+      const pos = i % porHoja; if (i && !pos) doc.addPage('letter', 'portrait');
+      dibujarPdf(doc, it, CARTA.x0 + (pos % CARTA.cols) * CARTA.pasoX, CARTA.y0 + Math.floor(pos / CARTA.cols) * CARTA.pasoY);
     }
-    // nombre (2 líneas máx.)
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.8); doc.setTextColor(0);
-    let lineas = doc.splitTextToSize(nombreDe(it) || it.c, 56);
-    if (lineas.length > 2) { lineas = lineas.slice(0, 2); lineas[1] = lineas[1].replace(/.{0,2}$/, '…'); }
-    doc.text(lineas, x + 2, y + 3.6, { lineHeightFactor: 1.15 });
-    // precio
-    const p = precioDe(it);
-    if (p != null && p !== '') {
-      const num = dinero(p);
-      doc.setFontSize(21); const wn = doc.getTextWidth(num);
-      doc.setFontSize(11.5); const wc = doc.getTextWidth('C$ ');
-      const x0 = x + 30 - (wn + wc) / 2;
-      doc.text('C$ ', x0, y + 14.4);
-      doc.setFontSize(21); doc.text(num, x0 + wc, y + 14.4);
-    }
-    // código de barras
-    const op = { format: formatoBarra(it.c), displayValue: false, margin: 0, width: 4, height: 120, flat: true };
-    try { JsBarcode(lienzo, it.c, op); } catch (e) { op.format = 'CODE128'; JsBarcode(lienzo, it.c, op); }
-    const anchoMm = Math.max(30, Math.min(56, (lienzo.width / 4) * 0.33 * 1.05));
-    doc.addImage(lienzo.toDataURL('image/png'), 'PNG', x + 30 - anchoMm / 2, y + 16.2, anchoMm, 10.2);
-    doc.setFont('courier', 'normal'); doc.setFontSize(7);
-    doc.text(it.c.split('').join(' '), x + 30, y + 29, { align: 'center' });
   });
   return doc;
 }
-function nombrePdf() { const d = new Date(); return `Etiquetas_${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}.pdf`; }
-function descargarPdf() { const doc = hacerPdf(); if (doc) doc.save(nombrePdf()); }
+function nombrePdf() {
+  const d = new Date(), z = n => String(n).padStart(2, '0');
+  return `etiquetas_precio_${d.getFullYear()}${z(d.getMonth() + 1)}${z(d.getDate())}_${z(d.getHours())}${z(d.getMinutes())}${z(d.getSeconds())}_6x3.pdf`;
+}
+function descargarPdf() { const doc = hacerPdf(); if (doc) { doc.save(nombrePdf()); aviso('PDF descargado'); } }
 async function compartirPdf() {
   const doc = hacerPdf(); if (!doc) return;
   const archivo = new File([doc.output('blob')], nombrePdf(), { type: 'application/pdf' });
   if (navigator.canShare && navigator.canShare({ files: [archivo] })) {
     try { await navigator.share({ files: [archivo], title: 'Etiquetas de precio' }); } catch (e) {}
   } else { doc.save(nombrePdf()); aviso('Este teléfono no permite compartir; se descargó el PDF'); }
+}
+
+/* ---------- imprimir directo ---------- */
+function imprimir() {
+  const todas = etiquetasParaSacar(); if (!todas) return;
+  const zona = $('impresion'); zona.innerHTML = '';
+  const img = it => { const im = new Image(); im.src = dibujarCanvas(it, 12).toDataURL('image/png'); return im; };
+  if ($('formato').value === 'termica') {
+    $('estiloPagina').textContent = '@page { size: 60mm 30mm; margin: 0; }';
+    todas.forEach((it, i) => { const im = img(it); if (i < todas.length - 1) im.classList.add('salto'); zona.appendChild(im); });
+  } else {
+    $('estiloPagina').textContent = '@page { size: letter; margin: 0; }';
+    const porHoja = CARTA.cols * CARTA.filas;
+    for (let i = 0; i < todas.length; i += porHoja) {
+      const hoja = document.createElement('div'); hoja.className = 'hoja-carta';
+      if (i + porHoja < todas.length) hoja.classList.add('salto');
+      todas.slice(i, i + porHoja).forEach(it => hoja.appendChild(img(it)));
+      zona.appendChild(hoja);
+    }
+  }
+  setTimeout(() => window.print(), 300);
 }
 
 /* ---------- escáner en vivo ---------- */
@@ -409,7 +448,7 @@ async function abrirCamara() {
     } else {
       if (!window.ZXing) { aviso('Cargando lector…'); await new Promise(r => setTimeout(r, 1200)); }
       lectorZx = new ZXing.BrowserMultiFormatReader();
-      await lectorZx.decodeFromConstraints({ video: { facingMode: { ideal: 'environment' } } }, video, (res) => { if (res) leido(res.getText()); });
+      await lectorZx.decodeFromConstraints({ video: { facingMode: { ideal: 'environment' } } }, video, res => { if (res) leido(res.getText()); });
     }
     $('estado').textContent = 'Apunta al código. Cada lectura suma una etiqueta.';
   } catch (e) {
@@ -431,15 +470,14 @@ $('btnCamara').onclick = abrirCamara;
 $('btnAgregar').onclick = () => { const v = $('codManual').value; if (v.trim()) { agregar(v); $('codManual').value = ''; } };
 $('codManual').addEventListener('keydown', e => { if (e.key === 'Enter') $('btnAgregar').click(); });
 $('btnVaciar').onclick = () => { if (lista.length && confirm('¿Quitar todos los productos de la lista?')) { lista = []; guardarLocal(CLAVE_LISTA, lista); pintar(); } };
-$('btnImprimir').onclick = imprimir;
 $('btnPdf').onclick = descargarPdf;
 $('btnCompartir').onclick = compartirPdf;
-$('formato').value = leerLocal(CLAVE_FORMATO, 'termica');
+$('btnImprimir').onclick = imprimir;
+$('formato').value = leerLocal(CLAVE_FORMATO, 'carta');
 $('formato').onchange = () => guardarLocal(CLAVE_FORMATO, $('formato').value);
 
 lista = leerLocal(CLAVE_LISTA, []);
-pintar();
-cargarCatalogo();
+cargarLetra().then(() => { pintar(); cargarCatalogo(); });
 </script>
 </body>
 </html>
