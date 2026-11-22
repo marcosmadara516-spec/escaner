@@ -90,7 +90,7 @@
     <div id="lista"></div>
   </div>
 
-  <div class="version">Etiquetas CCN y CDN · Versión 2</div>
+  <div class="version">Etiquetas CCN y CDN · Versión 3</div>
 </main>
 
 <div class="pie">
@@ -421,9 +421,11 @@ function pitido() {
   } catch (e) {}
 }
 function leido(texto) {
-  const c = norm(texto); const ahora = Date.now();
-  if (!c || (c === ultimo.c && ahora - ultimo.t < 1800)) return;
-  ultimo = { c, t: ahora };
+  if (!flujo && !lectorZx) return;            // ya se cerró: ignora lecturas tardías
+  const c = norm(texto);
+  if (!c) return;
+  cerrarCamara();                             // una lectura por vez
+  $('btnCamara').textContent = '📷 Escanear otro producto';
   pitido(); agregar(c);
 }
 async function abrirCamara() {
@@ -450,7 +452,7 @@ async function abrirCamara() {
       lectorZx = new ZXing.BrowserMultiFormatReader();
       await lectorZx.decodeFromConstraints({ video: { facingMode: { ideal: 'environment' } } }, video, res => { if (res) leido(res.getText()); });
     }
-    $('estado').textContent = 'Apunta al código. Cada lectura suma una etiqueta.';
+    $('estado').textContent = 'Apunta al código. Apunta al código.';
   } catch (e) {
     cerrarCamara();
     $('estado').innerHTML = `<span class="error">No se pudo abrir la cámara: ${esc(e.message)}</span>`;
@@ -462,7 +464,8 @@ function cerrarCamara() {
   if (lectorZx) { try { lectorZx.reset(); } catch (e) {} lectorZx = null; }
   detector = null;
   $('video').srcObject = null;
-  $('camara').classList.remove('on'); $('btnCamara').textContent = '📷 Escanear productos';
+  $('camara').classList.remove('on');
+  if ($('btnCamara').textContent.startsWith('⏹')) $('btnCamara').textContent = '📷 Escanear productos';
 }
 
 /* ---------- inicio ---------- */
