@@ -192,7 +192,7 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
     <button class="chip" data-f="atendidos" aria-pressed="false">Atendidos</button>
   </div>
   <div id="lista" class="lista"><div class="cargando">Cargando…</div></div>
-  <p class="muted" style="text-align:center;font-size:.8rem;margin:20px 0 0">Escáner en vivo · Versión 11</p>
+  <p class="muted" style="text-align:center;font-size:.8rem;margin:20px 0 0">Escáner en vivo · Versión 12</p>
 </div>
 
 <button class="fab" id="fab" type="button" aria-label="Escanear código de barras">
@@ -205,7 +205,10 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
   <div class="pant-b"><div class="in gut">
     <p class="muted" style="margin:0">Elige tu nombre y el PDV donde estás. La app los recuerda en este teléfono.</p>
     <label class="f">Nombre del display <span class="req">*</span><select id="sel-display"></select></label>
+    <label class="f" id="f-nuevo-disp" hidden>Tu nombre completo <span class="req">*</span><input id="nuevo-disp" placeholder="Ej. Juan Pérez" autocomplete="name" maxlength="60"></label>
     <label class="f">PDV <span class="req">*</span><select id="sel-pdv"></select></label>
+    <label class="f" id="f-nuevo-pdv" hidden>Nombre del PDV nuevo <span class="req">*</span><input id="nuevo-pdv" placeholder="Ej. AMPM-NANDAIME" autocomplete="off" maxlength="60" style="text-transform:uppercase"></label>
+    <p class="mini" id="ctx-nota" hidden style="margin:0">Se guarda en la lista y la próxima vez ya aparece para elegir.</p>
     <button class="btn pri big" id="ctx-ok" type="button">Listo</button>
   </div></div>
 </section>
@@ -298,7 +301,7 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>
       <span>Cambiar display y PDV</span>
     </button>
-    <div class="m-ver">Escáner en vivo · Versión 11</div>
+    <div class="m-ver">Escáner en vivo · Versión 12</div>
   </nav>
 </div>
 
@@ -415,17 +418,50 @@ $("lista").addEventListener("click",async e=>{const b=e.target.closest("[data-ac
   catch(err){toast("No se pudo actualizar");b.disabled=false;b.textContent=r.estado==="atendido"?"Reabrir":"Atendido"}});
 
 /* ---------- display y PDV ---------- */
+const NUEVO="__nuevo__";
 function pintarCtx(){
   const sd=$("sel-display"),cur=sd.value||S.ctx.display;
-  sd.innerHTML=`<option value="">Elegir…</option>`+S.cat.displays.map(d=>`<option ${d.nombre===cur?"selected":""}>${esc(d.nombre)}</option>`).join("");
+  sd.innerHTML=`<option value="">Elegir…</option>`+S.cat.displays.map(d=>`<option ${d.nombre===cur?"selected":""}>${esc(d.nombre)}</option>`).join("")
+    +`<option value="${NUEVO}" ${cur===NUEVO?"selected":""}>➕ Soy nuevo: escribir mi nombre</option>`;
   pintarPdv(S.ctx.pdv);
 }
-function pintarPdv(sel){const d=S.cat.displays.find(x=>x.nombre===$("sel-display").value);const sp=$("sel-pdv");
-  sp.innerHTML=`<option value="">${d?"Elegir…":"Primero elige el display"}</option>`+(d?d.pdvs.map(p=>`<option ${p===sel?"selected":""}>${esc(p)}</option>`).join(""):"");sp.disabled=!d}
-$("sel-display").onchange=()=>pintarPdv("");
+function pintarPdv(sel){const v=$("sel-display").value,nuevoD=v===NUEVO;const d=S.cat.displays.find(x=>x.nombre===v);const sp=$("sel-pdv");
+  const pdvs=d?(d.pdvs||[]).filter(Boolean):[];
+  sp.innerHTML=(v?(nuevoD?"":`<option value="">${pdvs.length?"Elegir…":"Todavía no tienes PDV"}</option>`):`<option value="">Primero elige el display</option>`)
+    +pdvs.map(p=>`<option ${p===sel?"selected":""}>${esc(p)}</option>`).join("")
+    +(v?`<option value="${NUEVO}" ${nuevoD||sel===NUEVO?"selected":""}>➕ Agregar un PDV nuevo</option>`:"");
+  sp.disabled=!v;
+  if(v&&!nuevoD&&!pdvs.length)sp.value=NUEVO;
+  ctxCampos()}
+function ctxCampos(){const nd=$("sel-display").value===NUEVO,np=$("sel-pdv").value===NUEVO;
+  $("f-nuevo-disp").hidden=!nd;$("f-nuevo-pdv").hidden=!np;$("ctx-nota").hidden=!(nd||np)}
+$("sel-display").onchange=()=>{pintarPdv("");if($("sel-display").value===NUEVO)$("nuevo-disp").focus()};
+$("sel-pdv").onchange=()=>{ctxCampos();if($("sel-pdv").value===NUEVO)$("nuevo-pdv").focus()};
+async function guardarPdv(display,pdv){
+  let r;try{r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({accion:"etq_pdv",clave:CLAVE,display,pdv}),redirect:"follow"})}
+  catch(e){throw new Error("Sin conexión. Revisa tu internet.")}
+  let j=null;try{j=await r.json()}catch(e){}
+  if(!j)throw new Error("Apps Script no respondió bien.");
+  if(!j.ok)throw new Error(j.error||"No se pudo guardar");
+  // se agrega a la lista de este teléfono sin esperar a recargar
+  let d=S.cat.displays.find(x=>x.nombre.toUpperCase()===j.display.toUpperCase());
+  if(!d){d={nombre:j.display,pdvs:[]};S.cat.displays.push(d)}
+  d.pdvs=(d.pdvs||[]).filter(Boolean);if(!d.pdvs.includes(j.pdv))d.pdvs.push(j.pdv);
+  return j}
 $("btn-ctx").onclick=()=>{pintarCtx();abrir("p-ctx")};
 $("ctx-x").onclick=()=>cerrar("p-ctx");
-$("ctx-ok").onclick=()=>{const d=$("sel-display").value,p=$("sel-pdv").value;if(!d||!p){toast("Elige tu nombre y el PDV");return}
+$("ctx-ok").onclick=async()=>{let d=$("sel-display").value,p=$("sel-pdv").value;
+  const nuevoD=d===NUEVO,nuevoP=p===NUEVO;
+  if(nuevoD)d=$("nuevo-disp").value.replace(/\s+/g," ").trim();
+  if(nuevoP)p=$("nuevo-pdv").value.replace(/\s+/g," ").trim().toUpperCase();
+  if(!d){toast(nuevoD?"Escribe tu nombre completo":"Elige tu nombre");return}
+  if(nuevoD&&d.length<3){toast("Escribe tu nombre completo");return}
+  if(!p){toast(nuevoP?"Escribe el nombre del PDV":"Elige el PDV");return}
+  if(nuevoD||nuevoP){const b=$("ctx-ok");b.disabled=true;b.textContent="Guardando…";
+    try{const j=await guardarPdv(d,p);d=j.display;p=j.pdv;toast(j.nuevo?"PDV guardado":"Ese PDV ya estaba guardado")}
+    catch(e){toast(e.message);return}
+    finally{b.disabled=false;b.textContent="Listo"}
+    $("nuevo-disp").value="";$("nuevo-pdv").value=""}
   S.ctx={display:d,pdv:p};ls.set("esc-ctx",JSON.stringify(S.ctx));cerrar("p-ctx");S.filtro="pdv";renderLista()};
 
 /* ---------- escáner (foto del código) ---------- */
@@ -717,7 +753,9 @@ $("opc-x").onclick=()=>{cerrar("p-opc");const r=opcRes;opcRes=null;r&&r(null)};
 
 /* ---------- datos ---------- */
 function cargar(d){S.cat=d.catalogo||S.cat;S.regs=d.registros||[];S.codigos=d.codigos||[];if(d.reglas)S.reglas=d.reglas;
-  if(S.ctx.display&&!S.cat.displays.some(x=>x.nombre===S.ctx.display&&x.pdvs.includes(S.ctx.pdv)))S.ctx={display:"",pdv:""}}
+  if(S.ctx.display){let d=S.cat.displays.find(x=>x.nombre===S.ctx.display);
+    if(!d){d={nombre:S.ctx.display,pdvs:[]};S.cat.displays.push(d)}          // display recién agregado: se mantiene
+    d.pdvs=(d.pdvs||[]).filter(Boolean);if(!d.pdvs.includes(S.ctx.pdv))d.pdvs.push(S.ctx.pdv)}}
 async function refrescar(aviso){$("btn-act").disabled=true;
   try{cargar(await api("getDataEscaner"));renderLista();if(aviso)toast("Actualizado")}
   catch(e){if(aviso)toast("No se pudo actualizar. Revisa tu conexión.");else $("lista").innerHTML=`<div class="vacio"><b>No se pudo cargar</b>${esc(e&&e.message||"Revisa tu conexión y recarga.")}</div>`}
