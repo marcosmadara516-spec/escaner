@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#151a21">
+<title>Líneas bajas y faltantes</title>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js" defer></script>
+<style>
+  :root { --fondo:#151a21; --tarjeta:#1d232c; --borde:#2c3440; --texto:#eef1f5; --suave:#9aa4b2; --amarillo:#f5c84c; --rojo:#ff6b6b; --verde:#25d366; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--fondo); color:var(--texto); padding-bottom:150px; }
+  header { padding:16px; display:flex; align-items:center; gap:12px; position:sticky; top:0; background:var(--fondo); z-index:5; border-bottom:1px solid var(--borde); }
+  header a { color:var(--texto); text-decoration:none; font-size:22px; }
+  header h1 { margin:0; font-size:20px; flex:1; }
+  header small { display:block; font-size:13px; color:var(--suave); font-weight:400; margin-top:2px; }
+  main { max-width:640px; margin:0 auto; padding:12px; }
+  .tarjeta { background:var(--tarjeta); border:1px solid var(--borde); border-radius:14px; padding:12px; margin-bottom:12px; }
+  .tipo { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
+  .tipo button { background:transparent; border:1px solid var(--borde); color:var(--suave); padding:12px; border-radius:24px; font-weight:700; }
+  .tipo button.on[data-t="baja"] { background:var(--amarillo); color:#1a1a1a; border-color:var(--amarillo); }
+  .tipo button.on[data-t="falta"] { background:var(--rojo); color:#1a1a1a; border-color:var(--rojo); }
+  button { font:inherit; border:0; border-radius:12px; padding:11px 14px; cursor:pointer; background:#eef1f5; color:#151a21; font-weight:700; }
+  button.sec { background:#2a313c; color:var(--texto); }
+  .grande { width:100%; padding:14px; font-size:16px; }
+  input { font:inherit; padding:11px; border:1px solid var(--borde); border-radius:12px; width:100%; background:#11151b; color:var(--texto); }
+  input::placeholder { color:#6f7a88; }
+  .fila { display:flex; gap:8px; align-items:center; }
+  .camara { position:relative; background:#000; border-radius:12px; overflow:hidden; aspect-ratio:4/3; display:none; margin-bottom:10px; }
+  .camara.on { display:block; }
+  .camara video { width:100%; height:100%; object-fit:cover; }
+  .camara .mira { position:absolute; left:10%; right:10%; top:38%; height:24%; border:3px solid #4fc3f7; border-radius:8px; box-shadow:0 0 0 9999px rgba(0,0,0,.35); }
+  .estado { font-size:13px; color:var(--suave); margin-top:8px; min-height:18px; }
+  h2 { font-size:15px; margin:4px 0 8px; display:flex; align-items:center; gap:8px; }
+  h2 .punto { width:10px; height:10px; border-radius:50%; }
+  .item { display:flex; align-items:center; gap:10px; padding:11px 0; border-top:1px solid var(--borde); }
+  .item:first-of-type { border-top:0; }
+  .item .nom { flex:1; font-weight:600; }
+  .item .cod { display:block; font-size:12px; color:var(--suave); font-weight:400; font-family:ui-monospace,monospace; }
+  .item button { padding:7px 10px; font-size:13px; }
+  .item .cambiar { background:#2a313c; color:var(--texto); }
+  .item .quitar { background:transparent; color:var(--rojo); font-size:18px; }
+  .vacio { color:var(--suave); font-size:14px; padding:6px 0 4px; }
+  .pie { position:fixed; left:0; right:0; bottom:0; background:var(--tarjeta); border-top:1px solid var(--borde); padding:10px 12px calc(10px + env(safe-area-inset-bottom)); z-index:5; }
+  .pie .in { max-width:640px; margin:0 auto; display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:8px; }
+  .wa { background:var(--verde); color:#06260f; }
+  .aviso { position:fixed; left:50%; bottom:90px; transform:translateX(-50%); background:#eef1f5; color:#151a21; padding:10px 16px; border-radius:20px; font-size:14px; font-weight:600; z-index:20; opacity:0; transition:opacity .2s; pointer-events:none; max-width:90vw; text-align:center; }
+  .aviso.ver { opacity:1; }
+  .version { text-align:center; font-size:12px; color:#6f7a88; margin:16px 0; }
+</style>
+</head>
+<body>
+<header>
+  <a href="index.html" aria-label="Volver">←</a>
+  <h1>Líneas bajas y faltantes<small id="subtitulo">Escanea o escribe el artículo</small></h1>
+</header>
+
+<main>
+  <div class="tarjeta">
+    <div class="tipo">
+      <button data-t="baja" class="on">Línea baja</button>
+      <button data-t="falta">Faltante</button>
+    </div>
+    <div class="camara" id="camara"><video id="video" playsinline muted></video><div class="mira"></div></div>
+    <button class="grande" id="btnCamara">📷 Escanear artículo</button>
+    <div class="fila" style="margin-top:10px">
+      <input id="entrada" list="sugerencias" placeholder="Código o nombre del artículo" autocomplete="off">
+      <button id="btnAgregar">Agregar</button>
+    </div>
+    <datalist id="sugerencias"></datalist>
+    <div class="estado" id="estado">Cargando catálogo…</div>
+  </div>
+
+  <div class="tarjeta">
+    <input id="pdv" placeholder="PDV (ej. AMPM-MASATEPE)" autocomplete="off">
+  </div>
+
+  <div class="tarjeta">
+    <h2><span class="punto" style="background:var(--amarillo)"></span><span id="tBaja">Líneas bajas (0)</span></h2>
+    <div id="listaBaja"></div>
+  </div>
+  <div class="tarjeta">
+    <h2><span class="punto" style="background:var(--rojo)"></span><span id="tFalta">Faltantes (0)</span></h2>
+    <div id="listaFalta"></div>
+  </div>
+
+  <div class="version">Líneas bajas y faltantes · Versión 1</div>
+</main>
+
+<div class="pie">
+  <div class="in">
+    <button class="wa" id="btnWa">WhatsApp</button>
+    <button class="sec" id="btnCopiar">Copiar</button>
+    <button class="sec" id="btnPdf">PDF</button>
+    <button class="sec" id="btnNuevo">Nuevo</button>
+  </div>
+</div>
+<div class="aviso" id="aviso"></div>
+
+<script>
+/* ======= CONFIGURACIÓN (igual que en index.html del escáner) ======= */
+const API_URL = 'https://script.google.com/macros/s/AKfycbyvpcO6c2K2YQvtzC4Y1XidDCzytRMKU7S2ncWdgua-Y20VpWARAnuvpCAqmofXtzfO/exec';
+const CLAVE   = 'CCN';
+/* =================================================================== */
+
+const $ = id => document.getElementById(id);
+const K_LISTA = 'lineas_lista_v1', K_PDV = 'lineas_pdv_v1', K_CAT = 'etiquetas_catalogo_v1';
+const params = new URLSearchParams(location.search);
+const DISPLAY = params.get('display') || '';
+
+let catalogo = {}, porNombre = {};
+let lista = [];            // [{c, nombre, t:'baja'|'falta'}]
+let tipo = 'baja';
+let flujo = null, detector = null, lectorZx = null, timerScan = null, ultimo = { c: '', t: 0 };
+
+function guardarLocal(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+function leerLocal(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+function norm(c) { c = String(c || '').trim().replace(/\s+/g, ''); if (/^\d{12}$/.test(c)) c = '0' + c; return c; }
+function aviso(t) { const a = $('aviso'); a.textContent = t; a.classList.add('ver'); clearTimeout(aviso.t); aviso.t = setTimeout(() => a.classList.remove('ver'), 1800); }
+const UNIDADES = new Set(['ML','L','LT','LTS','G','GR','KG','OZ','LB','CC','UD','UDS','UND']);
+function titulo(s) {
+  s = String(s || '').trim();
+  if (!s || s !== s.toUpperCase()) return s;
+  return s.toLowerCase().split(/(\s+)/).map(w => (UNIDADES.has(w.toUpperCase()) || /^\d/.test(w)) ? w : w.charAt(0).toUpperCase() + w.slice(1)).join('');
+}
+function nombreCat(c) { const k = catalogo[c]; return k ? titulo(k.pres || k.p || '') : ''; }
+function hoy() { const d = new Date(), z = n => String(n).padStart(2, '0'); return `${z(d.getDate())}/${z(d.getMonth() + 1)}/${d.getFullYear()}`; }
+
+async function api(datos) {
+  const r = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ ...datos, clave: CLAVE }) });
+  const j = await r.json(); if (!j.ok) throw new Error(j.error || 'Error del servidor'); return j;
+}
+function prepararCatalogo() {
+  porNombre = {};
+  const dl = $('sugerencias'); dl.innerHTML = '';
+  Object.values(catalogo).forEach(x => {
+    const n = titulo(x.pres || x.p || ''); if (!n || porNombre[n.toLowerCase()]) return;
+    porNombre[n.toLowerCase()] = x.c;
+    const o = document.createElement('option'); o.value = n; dl.appendChild(o);
+  });
+}
+async function cargarCatalogo() {
+  const cache = leerLocal(K_CAT, null);
+  if (cache) { catalogo = cache; prepararCatalogo(); pintar(); }
+  try {
+    const r = await api({ accion: 'etq_data' });
+    catalogo = {}; r.items.forEach(x => { catalogo[norm(x.c)] = x; });
+    guardarLocal(K_CAT, catalogo); prepararCatalogo(); pintar();
+    $('estado').textContent = `Catálogo listo: ${r.items.length} artículos.`;
+  } catch (e) {
+    $('estado').textContent = cache ? 'Sin conexión: usando el catálogo guardado.' : 'No se pudo cargar el catálogo; puedes escribir los nombres.';
+  }
+}
+
+/* ---------- lista ---------- */
+function agregar(texto, esCodigo) {
+  texto = String(texto || '').trim(); if (!texto) return;
+  let c = '', nombre = '';
+  if (esCodigo || /^\d{6,14}$/.test(texto.replace(/\s/g, ''))) {
+    c = norm(texto); nombre = nombreCat(c);
+    if (!nombre) { nombre = prompt(`El código ${c} no está en el catálogo. Escribe el nombre del artículo:`) || ''; nombre = nombre.trim(); if (!nombre) return; }
+  } else {
+    nombre = texto; c = porNombre[texto.toLowerCase()] || '';
+    if (c) nombre = nombreCat(c);
+  }
+  const clave = (c || nombre).toLowerCase();
+  const ya = lista.find(x => (x.c || x.nombre).toLowerCase() === clave);
+  if (ya) {
+    if (ya.t !== tipo) { ya.t = tipo; aviso(`${ya.nombre} → ${tipo === 'baja' ? 'Línea baja' : 'Faltante'}`); }
+    else { aviso(`${ya.nombre} ya está en la lista`); return; }
+  } else {
+    lista.push({ c, nombre, t: tipo });
+    aviso(`${nombre} · ${tipo === 'baja' ? 'Línea baja' : 'Faltante'}`);
+  }
+  guardarLocal(K_LISTA, lista); pintar();
+}
+function pintar() {
+  ['baja', 'falta'].forEach(t => {
+    const cont = $(t === 'baja' ? 'listaBaja' : 'listaFalta');
+    const items = lista.filter(x => x.t === t);
+    $(t === 'baja' ? 'tBaja' : 'tFalta').textContent = `${t === 'baja' ? 'Líneas bajas' : 'Faltantes'} (${items.length})`;
+    cont.innerHTML = items.length ? '' : '<div class="vacio">Sin artículos.</div>';
+    items.forEach(it => {
+      const d = document.createElement('div'); d.className = 'item';
+      d.innerHTML = `<div class="nom">${esc(it.nombre)}${it.c ? `<span class="cod">${esc(it.c)}</span>` : ''}</div>
+        <button class="cambiar">${t === 'baja' ? 'Pasar a faltante' : 'Pasar a línea baja'}</button>
+        <button class="quitar" aria-label="Quitar">✕</button>`;
+      d.querySelector('.cambiar').onclick = () => { it.t = t === 'baja' ? 'falta' : 'baja'; guardarLocal(K_LISTA, lista); pintar(); };
+      d.querySelector('.quitar').onclick = () => { lista.splice(lista.indexOf(it), 1); guardarLocal(K_LISTA, lista); pintar(); };
+      cont.appendChild(d);
+    });
+  });
+}
+
+/* ---------- reporte ---------- */
+function textoReporte() {
+  const bajas = lista.filter(x => x.t === 'baja'), faltas = lista.filter(x => x.t === 'falta');
+  const pdv = $('pdv').value.trim();
+  let s = '*REPORTE DE LÍNEAS BAJAS Y FALTANTES*\n';
+  if (pdv) s += `PDV: ${pdv}\n`;
+  if (DISPLAY) s += `Display: ${DISPLAY}\n`;
+  s += `Fecha: ${hoy()}\n`;
+  s += `\n*LÍNEAS BAJAS (${bajas.length})*\n` + (bajas.length ? bajas.map(x => '• ' + x.nombre).join('\n') : '• Ninguna') + '\n';
+  s += `\n*FALTANTES (${faltas.length})*\n` + (faltas.length ? faltas.map(x => '• ' + x.nombre).join('\n') : '• Ninguno');
+  return s;
+}
+function hayDatos() { if (!lista.length) { aviso('Agrega al menos un artículo'); return false; } return true; }
+function enviarWhatsApp() {
+  if (!hayDatos()) return;
+  window.open('https://wa.me/?text=' + encodeURIComponent(textoReporte()), '_blank');
+}
+async function copiar() {
+  if (!hayDatos()) return;
+  try { await navigator.clipboard.writeText(textoReporte()); aviso('Reporte copiado'); }
+  catch (e) { prompt('Copia el reporte:', textoReporte()); }
+}
+function pdf() {
+  if (!hayDatos()) return;
+  if (!window.jspdf) { aviso('El PDF aún no carga, intenta de nuevo'); return; }
+  const doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'letter' });
+  const pdv = $('pdv').value.trim();
+  let y = 20;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.text('Reporte de líneas bajas y faltantes', 15, y); y += 8;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(11); doc.setTextColor(90);
+  doc.text([pdv && `PDV: ${pdv}`, DISPLAY && `Display: ${DISPLAY}`, `Fecha: ${hoy()}`].filter(Boolean).join('    '), 15, y); y += 10;
+  [['baja', 'LÍNEAS BAJAS', [230, 170, 20]], ['falta', 'FALTANTES', [220, 60, 60]]].forEach(([t, tit, color]) => {
+    const items = lista.filter(x => x.t === t);
+    if (y > 250) { doc.addPage(); y = 20; }
+    doc.setFillColor(...color); doc.rect(15, y - 5, 186, 8, 'F');
+    doc.setTextColor(255); doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.text(`${tit} (${items.length})`, 18, y); y += 9;
+    doc.setTextColor(30); doc.setFont('helvetica', 'normal'); doc.setFontSize(11);
+    if (!items.length) { doc.text('Ninguno', 18, y); y += 7; }
+    items.forEach((it, i) => {
+      if (y > 265) { doc.addPage(); y = 20; }
+      doc.text(`${i + 1}. ${it.nombre}`, 18, y);
+      if (it.c) { doc.setTextColor(120); doc.text(it.c, 201, y, { align: 'right' }); doc.setTextColor(30); }
+      doc.setDrawColor(225); doc.line(15, y + 2.5, 201, y + 2.5); y += 7.5;
+    });
+    y += 6;
+  });
+  const d = new Date(), z = n => String(n).padStart(2, '0');
+  doc.save(`lineas_bajas_faltantes_${d.getFullYear()}${z(d.getMonth() + 1)}${z(d.getDate())}.pdf`);
+}
+
+/* ---------- escáner en vivo ---------- */
+function pitido() {
+  try { navigator.vibrate && navigator.vibrate(60); } catch (e) {}
+  try { const ctx = pitido.ctx || (pitido.ctx = new (window.AudioContext || window.webkitAudioContext)()); const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = 1500; g.gain.value = 0.15; o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.09); } catch (e) {}
+}
+function leido(texto) {
+  const c = norm(texto), ahora = Date.now();
+  if (!c || (c === ultimo.c && ahora - ultimo.t < 2500)) return;
+  ultimo = { c, t: ahora }; pitido(); agregar(c, true);
+}
+async function abrirCamara() {
+  if (flujo || lectorZx) { cerrarCamara(); return; }
+  $('camara').classList.add('on'); $('btnCamara').textContent = '⏹️ Terminar de escanear';
+  const video = $('video');
+  try {
+    if ('BarcodeDetector' in window) {
+      const sop = await BarcodeDetector.getSupportedFormats();
+      const f = ['ean_13','ean_8','upc_a','upc_e','code_128','code_39','itf'].filter(x => sop.includes(x));
+      if (f.length) detector = new BarcodeDetector({ formats: f });
+    }
+    if (detector) {
+      flujo = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } }, audio: false });
+      video.srcObject = flujo; await video.play();
+      const ciclo = async () => { if (!flujo) return; try { const r = await detector.detect(video); if (r.length) leido(r[0].rawValue); } catch (e) {} timerScan = setTimeout(ciclo, 180); };
+      ciclo();
+    } else {
+      if (!window.ZXing) { aviso('Cargando lector…'); await new Promise(r => setTimeout(r, 1200)); }
+      lectorZx = new ZXing.BrowserMultiFormatReader();
+      await lectorZx.decodeFromConstraints({ video: { facingMode: { ideal: 'environment' } } }, video, res => { if (res) leido(res.getText()); });
+    }
+  } catch (e) { cerrarCamara(); $('estado').textContent = 'No se pudo abrir la cámara: ' + e.message; }
+}
+function cerrarCamara() {
+  clearTimeout(timerScan);
+  if (flujo) { flujo.getTracks().forEach(t => t.stop()); flujo = null; }
+  if (lectorZx) { try { lectorZx.reset(); } catch (e) {} lectorZx = null; }
+  detector = null; $('video').srcObject = null;
+  $('camara').classList.remove('on'); $('btnCamara').textContent = '📷 Escanear artículo';
+}
+
+/* ---------- inicio ---------- */
+document.querySelectorAll('.tipo button').forEach(b => b.onclick = () => {
+  tipo = b.dataset.t; document.querySelectorAll('.tipo button').forEach(x => x.classList.toggle('on', x === b));
+});
+$('btnCamara').onclick = abrirCamara;
+$('btnAgregar').onclick = () => { agregar($('entrada').value); $('entrada').value = ''; };
+$('entrada').addEventListener('keydown', e => { if (e.key === 'Enter') $('btnAgregar').click(); });
+$('btnWa').onclick = enviarWhatsApp;
+$('btnCopiar').onclick = copiar;
+$('btnPdf').onclick = pdf;
+$('btnNuevo').onclick = () => { if (lista.length && confirm('¿Empezar un reporte nuevo? Se borra la lista actual.')) { lista = []; guardarLocal(K_LISTA, lista); pintar(); } };
+$('pdv').value = params.get('pdv') || leerLocal(K_PDV, '');
+$('pdv').onchange = () => guardarLocal(K_PDV, $('pdv').value.trim());
+if (DISPLAY || params.get('pdv')) $('subtitulo').textContent = [DISPLAY, params.get('pdv')].filter(Boolean).join(' · ');
+
+lista = leerLocal(K_LISTA, []);
+pintar();
+cargarCatalogo();
+</script>
+</body>
+</html>
