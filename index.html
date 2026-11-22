@@ -190,26 +190,37 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
     <button class="chip" data-f="pdv" aria-pressed="true">Este PDV</button>
     <button class="chip" data-f="todos" aria-pressed="false">Todos mis PDV</button>
     <button class="chip" data-f="atendidos" aria-pressed="false">Atendidos</button>
+    <button class="chip" data-f="admin" aria-pressed="false" hidden>Todos los displays</button>
   </div>
   <div id="lista" class="lista"><div class="cargando">Cargando…</div></div>
-  <p class="muted" style="text-align:center;font-size:.8rem;margin:20px 0 0">Escáner en vivo · Versión 12</p>
+  <p class="muted" style="text-align:center;font-size:.8rem;margin:20px 0 0">Escáner en vivo · Versión 13</p>
 </div>
 
 <button class="fab" id="fab" type="button" aria-label="Escanear código de barras">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
 </button>
 
-<!-- Display y PDV -->
+<!-- Entrar con PIN y elegir PDV -->
 <section class="pant" id="p-ctx" hidden aria-labelledby="p-ctx-t">
-  <div class="pant-h"><b id="p-ctx-t">¿Quién y dónde?</b><button class="btn" id="ctx-x" type="button">Cerrar</button></div>
+  <div class="pant-h"><b id="p-ctx-t">Entrar</b><button class="btn" id="ctx-x" type="button">Cerrar</button></div>
   <div class="pant-b"><div class="in gut">
-    <p class="muted" style="margin:0">Elige tu nombre y el PDV donde estás. La app los recuerda en este teléfono.</p>
-    <label class="f">Nombre del display <span class="req">*</span><select id="sel-display"></select></label>
-    <label class="f" id="f-nuevo-disp" hidden>Tu nombre completo <span class="req">*</span><input id="nuevo-disp" placeholder="Ej. Juan Pérez" autocomplete="name" maxlength="60"></label>
-    <label class="f">PDV <span class="req">*</span><select id="sel-pdv"></select></label>
-    <label class="f" id="f-nuevo-pdv" hidden>Nombre del PDV nuevo <span class="req">*</span><input id="nuevo-pdv" placeholder="Ej. AMPM-NANDAIME" autocomplete="off" maxlength="60" style="text-transform:uppercase"></label>
-    <p class="mini" id="ctx-nota" hidden style="margin:0">Se guarda en la lista y la próxima vez ya aparece para elegir.</p>
-    <button class="btn pri big" id="ctx-ok" type="button">Listo</button>
+    <div id="ctx-entrar" style="display:flex;flex-direction:column;gap:14px">
+      <p class="muted" style="margin:0">Elige tu nombre y escribe tu PIN. Cada display ve solo sus productos.</p>
+      <label class="f">Nombre del display <span class="req">*</span><select id="sel-display"></select></label>
+      <label class="f" id="f-nuevo-disp" hidden>Tu nombre completo <span class="req">*</span><input id="nuevo-disp" placeholder="Ej. Juan Pérez" autocomplete="name" maxlength="60"></label>
+      <label class="f"><span><span id="pin-t">Tu PIN</span> <span class="req">*</span></span><input id="pin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="4 números" style="letter-spacing:.4em;font-size:1.2rem"></label>
+      <label class="f" id="f-pin2" hidden>Repite el PIN <span class="req">*</span><input id="pin2" type="password" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="4 números" style="letter-spacing:.4em;font-size:1.2rem"></label>
+      <p class="mini" id="pin-nota" style="margin:0"></p>
+      <button class="btn pri big" id="ctx-entrar-ok" type="button">Entrar</button>
+    </div>
+    <div id="ctx-pdv" hidden style="display:flex;flex-direction:column;gap:14px">
+      <div class="rep-res" id="ctx-hola"></div>
+      <label class="f">PDV donde estás <span class="req">*</span><select id="sel-pdv"></select></label>
+      <label class="f" id="f-nuevo-pdv" hidden>Nombre del PDV nuevo <span class="req">*</span><input id="nuevo-pdv" placeholder="Ej. AMPM-NANDAIME" autocomplete="off" maxlength="60" style="text-transform:uppercase"></label>
+      <p class="mini" id="ctx-nota" hidden style="margin:0">Se guarda en tu lista y la próxima vez ya aparece para elegir.</p>
+      <button class="btn pri big" id="ctx-ok" type="button">Listo</button>
+      <button class="link" id="ctx-salir" type="button" style="text-align:center">Salir (entrar con otro display)</button>
+    </div>
   </div></div>
 </section>
 
@@ -301,7 +312,7 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>
       <span>Cambiar display y PDV</span>
     </button>
-    <div class="m-ver">Escáner en vivo · Versión 12</div>
+    <div class="m-ver">Escáner en vivo · Versión 13</div>
   </nav>
 </div>
 
@@ -309,7 +320,7 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
 <section class="pant" id="p-rep" hidden aria-labelledby="p-rep-t">
   <div class="pant-h"><b id="p-rep-t">Reporte de fechas próximas</b><button class="btn" id="rep-x" type="button">Cerrar</button></div>
   <div class="pant-b"><div class="in gut">
-    <div class="f">PDV<div class="seg ancho" id="rep-alc"><button type="button" data-v="pdv" aria-pressed="true">Este PDV</button><button type="button" data-v="todos" aria-pressed="false">Todos mis PDV</button></div></div>
+    <div class="f">PDV<div class="seg ancho" id="rep-alc"><button type="button" data-v="pdv" aria-pressed="true">Este PDV</button><button type="button" data-v="todos" aria-pressed="false">Todos mis PDV</button><button type="button" data-v="admin" aria-pressed="false" hidden>Todos los displays</button></div></div>
     <div class="f">Estado<div class="seg ancho" id="rep-est"><button type="button" data-v="pend" aria-pressed="true">Pendientes</button><button type="button" data-v="aten" aria-pressed="false">Atendidos</button><button type="button" data-v="todos" aria-pressed="false">Todos</button></div></div>
     <div class="f">Categoría<div class="seg ancho" id="rep-cat"><button type="button" data-v="todas" aria-pressed="true">Todas</button><button type="button" data-v="CCN" aria-pressed="false">CCN</button><button type="button" data-v="CDN" aria-pressed="false">CDN</button></div></div>
     <div class="rep-res" id="rep-res"></div>
@@ -329,15 +340,23 @@ const ls={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k
 const API_URL = "https://script.google.com/macros/s/AKfycbyvpcO6c2K2YQvtzC4Y1XidDCzytRMKU7S2ncWdgua-Y20VpWARAnuvpCAqmofXtzfO/exec";
 const CLAVE   = "CCN";
 /* =============================================================================================================== */
-async function api(fn,...a){
+/* ---------- sesión con PIN ---------- */
+let SES=null;try{SES=JSON.parse(ls.get("esc-ses")||"null")}catch(e){}
+const esAdmin=()=>!!(SES&&SES.rol==="ADMIN");
+async function post(cuerpo){
   if(!/^https:\/\/script\.google\.com\/.+\/exec$/.test(API_URL))throw new Error("Falta poner la URL de Apps Script en index.html (API_URL).");
-  const cuerpo={key:CLAVE,...({getDataEscaner:{action:"data"},guardarEscaneo:{action:"guardar",datos:a[0]},cambiarEstado:{action:"estado",id:a[0],estado:a[1]}}[fn])};
   let r;
-  try{r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(cuerpo),redirect:"follow"})}
+  try{r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({...cuerpo,clave:CLAVE}),redirect:"follow"})}
   catch(e){throw new Error("Sin conexión. Revisa tu internet.")}
   let j=null;try{j=await r.json()}catch(e){}
   if(!j)throw new Error("Apps Script no respondió bien. Revisa que esté implementado con acceso \"Cualquier usuario\".");
-  if(!j.ok)throw new Error(j.error||"Error desconocido");
+  if(!j.ok){const e=new Error(j.error||"Error desconocido");if(j.sesion===false)e.sesion=true;throw e}
+  return j}
+async function api(fn,...a){
+  if(!SES){const e=new Error("Escribe tu PIN para entrar.");e.sesion=true;throw e}
+  const extra={getDataEscaner:{accion:"etq_data2"},guardarEscaneo:{accion:"etq_guardar",datos:a[0]},cambiarEstado:{accion:"etq_estado",id:a[0],estado:a[1]}}[fn];
+  const j=await post({...extra,display:SES.display,token:SES.token});
+  if(j.rol&&j.rol!==SES.rol){SES.rol=j.rol;ls.set("esc-ses",JSON.stringify(SES))}
   return j.data}
 const norm=t=>String(t||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
 function coincide(txt,q){const toks=norm(q).split(/\s+/).filter(Boolean);if(!toks.length)return true;const n=norm(txt),ns=n.replace(/\s+/g,"");return toks.every(t=>n.includes(t)||ns.includes(t))}
@@ -377,15 +396,16 @@ function visibles(){
   return S.regs.filter(r=>{
     if(S.filtro==="atendidos"){if(r.estado!=="atendido")return false}else if(r.estado==="atendido")return false;
     if(S.filtro==="pdv"&&(r.pdv!==S.ctx.pdv||r.display!==S.ctx.display))return false;
-    if(S.filtro!=="pdv"&&S.ctx.display&&r.display!==S.ctx.display)return false;
+    if(S.filtro!=="pdv"&&S.filtro!=="admin"&&S.ctx.display&&r.display!==S.ctx.display)return false;
     if(S.q&&!coincide([r.producto,r.presentacion,r.pdv,r.lote,codigoDe(r)].join(" "),S.q))return false;
     return true}).sort((a,b)=>(fechaRetiro(a)).localeCompare(fechaRetiro(b))||(a.fecha||"").localeCompare(b.fecha||""));
 }
 function renderLista(){
-  $("ctx-txt").textContent=S.ctx.display?`${S.ctx.display} · ${S.ctx.pdv}`:"Toca aquí para elegir tu nombre y PDV";
+  $("ctx-txt").textContent=SES?`${SES.display} · ${S.ctx.pdv||"elige tu PDV"}${esAdmin()?" · Admin":""}`:"Toca aquí para entrar con tu PIN";
+  document.querySelector('#chips [data-f="admin"]').hidden=!esAdmin();if(S.filtro==="admin"&&!esAdmin())S.filtro="pdv";
   const rows=visibles();
   // aviso
-  const pend=S.regs.filter(r=>r.estado!=="atendido"&&(S.filtro!=="pdv"||(r.pdv===S.ctx.pdv&&r.display===S.ctx.display))&&(!S.ctx.display||r.display===S.ctx.display));
+  const pend=S.regs.filter(r=>r.estado!=="atendido"&&(S.filtro!=="pdv"||(r.pdv===S.ctx.pdv&&r.display===S.ctx.display))&&(S.filtro==="admin"||!S.ctx.display||r.display===S.ctx.display));
   const ya=pend.filter(r=>diasRet(r)<=0).length,semana=pend.filter(r=>{const n=diasRet(r);return n>0&&n<=7}).length;
   const av=$("aviso");av.hidden=S.filtro==="atendidos"||!S.ctx.display;
   av.className="aviso gut"+(ya||semana?"":" ok");
@@ -401,11 +421,11 @@ function renderLista(){
       <div>
         <div class="cab"><span class="fv">Vence ${fLarga(r.fecha)}</span><span class="cat">${esc(r.categoria)}</span></div>
         <div class="nm">${esc(nombre)}</div>
-        <div class="cod">${cod?esc(cod)+" · ":""}${esc(r.cantidad)} und${S.filtro!=="pdv"?" · "+esc(r.pdv):""}</div>
+        <div class="cod">${cod?esc(cod)+" · ":""}${esc(r.cantidad)} und${S.filtro==="admin"?" · "+esc(r.display)+" · "+esc(r.pdv):S.filtro!=="pdv"?" · "+esc(r.pdv):""}</div>
         <div class="pie">${done?`<span class="mini">Atendido</span>`:`<span class="pill n-${k}">${txtRet(n)}</span>`}
           ${done?`<button class="btn-s" data-act="estado">Reabrir</button>`:n<=0?`<button class="btn-s" data-act="estado">Atendido</button>`:`<span class="mini" style="margin-left:auto">Retirar el ${fCorta(fechaRetiro(r))}</span>`}</div>
       </div></div>`}).join("")
-    :`<div class="vacio">${!S.ctx.display?"<b>Elige tu nombre y PDV</b>Toca el título de arriba para empezar.":S.filtro==="atendidos"?"<b>Sin productos atendidos</b>Aquí aparecen los que marques como atendidos.":S.q?"<b>Nada coincide con la búsqueda</b>":"<b>No hay productos registrados aquí</b>Toca el botón + para escanear el primero."}</div>`;
+    :`<div class="vacio">${!SES?"<b>Entra con tu PIN</b>Toca el título de arriba para empezar.":S.filtro==="atendidos"?"<b>Sin productos atendidos</b>Aquí aparecen los que marques como atendidos.":S.q?"<b>Nada coincide con la búsqueda</b>":"<b>No hay productos registrados aquí</b>Toca el botón + para escanear el primero."}</div>`;
 }
 $("chips").onclick=e=>{const c=e.target.closest(".chip");if(!c)return;S.filtro=c.dataset.f;renderLista()};
 $("btn-buscar").onclick=()=>{const b=$("caja-buscar");b.hidden=!b.hidden;if(!b.hidden)$("q").focus();else{$("q").value="";S.q="";renderLista()}};
@@ -415,54 +435,72 @@ $("lista").addEventListener("click",async e=>{const b=e.target.closest("[data-ac
   if(r.estado!=="atendido"&&diasRet(r)>0){toast("Se puede marcar desde el "+fCorta(fechaRetiro(r)));return}
   const est=r.estado==="atendido"?"pendiente":"atendido";b.disabled=true;b.textContent="…";
   try{S.regs=await api("cambiarEstado",id,est);renderLista();toast(est==="atendido"?"Marcado como atendido":"Reabierto")}
-  catch(err){toast("No se pudo actualizar");b.disabled=false;b.textContent=r.estado==="atendido"?"Reabrir":"Atendido"}});
+  catch(err){if(err.sesion)return salir(err.message);toast(err.message||"No se pudo actualizar");b.disabled=false;b.textContent=r.estado==="atendido"?"Reabrir":"Atendido"}});
 
-/* ---------- display y PDV ---------- */
-const NUEVO="__nuevo__";
-function pintarCtx(){
-  const sd=$("sel-display"),cur=sd.value||S.ctx.display;
-  sd.innerHTML=`<option value="">Elegir…</option>`+S.cat.displays.map(d=>`<option ${d.nombre===cur?"selected":""}>${esc(d.nombre)}</option>`).join("")
+/* ---------- entrar con PIN y elegir PDV ---------- */
+const NUEVO="__nuevo__";let NOMBRES=[];
+function salir(msg){SES=null;ls.set("esc-ses","");S.ctx={display:"",pdv:""};ls.set("esc-ctx","");S.regs=[];S.cat.displays=[];S.filtro="pdv";renderLista();abrirEntrar(msg)}
+async function abrirEntrar(msg){
+  $("ctx-entrar").hidden=false;$("ctx-pdv").hidden=true;$("p-ctx-t").textContent="Entrar";$("pin").value="";$("pin2").value="";
+  abrir("p-ctx");if(msg)toast(msg);
+  try{NOMBRES=(await post({accion:"etq_nombres"})).nombres||[]}catch(e){toast(e.message)}
+  pintarNombres()}
+function pintarNombres(){const sd=$("sel-display"),cur=sd.value;
+  sd.innerHTML=`<option value="">Elegir…</option>`+NOMBRES.map(n=>`<option ${n.nombre===cur?"selected":""}>${esc(n.nombre)}</option>`).join("")
     +`<option value="${NUEVO}" ${cur===NUEVO?"selected":""}>➕ Soy nuevo: escribir mi nombre</option>`;
-  pintarPdv(S.ctx.pdv);
-}
-function pintarPdv(sel){const v=$("sel-display").value,nuevoD=v===NUEVO;const d=S.cat.displays.find(x=>x.nombre===v);const sp=$("sel-pdv");
-  const pdvs=d?(d.pdvs||[]).filter(Boolean):[];
-  sp.innerHTML=(v?(nuevoD?"":`<option value="">${pdvs.length?"Elegir…":"Todavía no tienes PDV"}</option>`):`<option value="">Primero elige el display</option>`)
-    +pdvs.map(p=>`<option ${p===sel?"selected":""}>${esc(p)}</option>`).join("")
-    +(v?`<option value="${NUEVO}" ${nuevoD||sel===NUEVO?"selected":""}>➕ Agregar un PDV nuevo</option>`:"");
-  sp.disabled=!v;
-  if(v&&!nuevoD&&!pdvs.length)sp.value=NUEVO;
-  ctxCampos()}
-function ctxCampos(){const nd=$("sel-display").value===NUEVO,np=$("sel-pdv").value===NUEVO;
-  $("f-nuevo-disp").hidden=!nd;$("f-nuevo-pdv").hidden=!np;$("ctx-nota").hidden=!(nd||np)}
-$("sel-display").onchange=()=>{pintarPdv("");if($("sel-display").value===NUEVO)$("nuevo-disp").focus()};
-$("sel-pdv").onchange=()=>{ctxCampos();if($("sel-pdv").value===NUEVO)$("nuevo-pdv").focus()};
-async function guardarPdv(display,pdv){
-  let r;try{r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({accion:"etq_pdv",clave:CLAVE,display,pdv}),redirect:"follow"})}
-  catch(e){throw new Error("Sin conexión. Revisa tu internet.")}
-  let j=null;try{j=await r.json()}catch(e){}
-  if(!j)throw new Error("Apps Script no respondió bien.");
-  if(!j.ok)throw new Error(j.error||"No se pudo guardar");
-  // se agrega a la lista de este teléfono sin esperar a recargar
+  camposEntrar()}
+function camposEntrar(){const v=$("sel-display").value,n=NOMBRES.find(x=>x.nombre===v),crear=v===NUEVO||(!!n&&!n.pin);
+  $("f-nuevo-disp").hidden=v!==NUEVO;$("f-pin2").hidden=!crear;
+  $("pin-t").textContent=crear?"Crea tu PIN de 4 números":"Tu PIN";
+  $("pin-nota").textContent=!v?"":crear?"Es la primera vez que entras: crea tu PIN y guárdalo bien. Lo vas a necesitar si cambias de teléfono.":"¿Olvidaste tu PIN? Pide al administrador que lo borre y crea uno nuevo.";
+  $("ctx-entrar-ok").textContent=crear?"Crear PIN y entrar":"Entrar"}
+$("sel-display").onchange=()=>{camposEntrar();($("sel-display").value===NUEVO?$("nuevo-disp"):$("pin")).focus()};
+["pin","pin2"].forEach(id=>$(id).oninput=e=>{e.target.value=e.target.value.replace(/\D/g,"").slice(0,4)});
+$("pin").addEventListener("keydown",e=>{if(e.key==="Enter"&&$("f-pin2").hidden)$("ctx-entrar-ok").click()});
+$("ctx-entrar-ok").onclick=async()=>{const v=$("sel-display").value;
+  const display=v===NUEVO?$("nuevo-disp").value.replace(/\s+/g," ").trim():v,pin=$("pin").value;
+  if(!v){toast("Elige tu nombre");return}
+  if(display.length<3){toast("Escribe tu nombre completo");return}
+  if(!/^\d{4}$/.test(pin)){toast("El PIN debe tener 4 números");return}
+  if(!$("f-pin2").hidden&&$("pin2").value!==pin){toast("Los dos PIN no coinciden");return}
+  const b=$("ctx-entrar-ok"),t=b.textContent;b.disabled=true;b.textContent="Entrando…";
+  try{const j=await post({accion:"etq_login",display,pin});
+    SES={display:j.display,token:j.token,rol:j.rol};ls.set("esc-ses",JSON.stringify(SES));
+    if(S.ctx.display!==SES.display)S.ctx={display:SES.display,pdv:""};
+    $("pin").value="";$("pin2").value="";$("nuevo-disp").value="";
+    toast(j.nuevo?"PIN creado. ¡Bienvenido!":"Hola, "+SES.display.split(" ")[0]);
+    await refrescar(false);abrirPdv()}
+  catch(e){toast(e.message)}
+  finally{b.disabled=false;b.textContent=t}};
+function misPdvs(){if(!SES)return[];const d=S.cat.displays.find(x=>x.nombre.toUpperCase()===SES.display.toUpperCase());return d?(d.pdvs||[]).filter(Boolean):[]}
+function abrirPdv(){if(!SES)return abrirEntrar();
+  $("ctx-entrar").hidden=true;$("ctx-pdv").hidden=false;$("p-ctx-t").textContent="¿Dónde estás?";
+  $("ctx-hola").innerHTML=`${esc(SES.display)}<span>${esAdmin()?"Administrador · puedes ver todos los displays":"Solo ves tus productos"}</span>`;
+  pintarPdv(S.ctx.pdv);abrir("p-ctx")}
+function pintarPdv(sel){const pdvs=misPdvs(),sp=$("sel-pdv");
+  sp.innerHTML=`<option value="">${pdvs.length?"Elegir…":"Todavía no tienes PDV"}</option>`+pdvs.map(p=>`<option ${p===sel?"selected":""}>${esc(p)}</option>`).join("")
+    +`<option value="${NUEVO}">➕ Agregar un PDV nuevo</option>`;
+  if(!pdvs.length)sp.value=NUEVO;camposPdv()}
+function camposPdv(){const np=$("sel-pdv").value===NUEVO;$("f-nuevo-pdv").hidden=!np;$("ctx-nota").hidden=!np}
+$("sel-pdv").onchange=()=>{camposPdv();if($("sel-pdv").value===NUEVO)$("nuevo-pdv").focus()};
+async function guardarPdv(pdv){
+  const j=await post({accion:"etq_pdv",display:SES.display,token:SES.token,pdv});
   let d=S.cat.displays.find(x=>x.nombre.toUpperCase()===j.display.toUpperCase());
   if(!d){d={nombre:j.display,pdvs:[]};S.cat.displays.push(d)}
   d.pdvs=(d.pdvs||[]).filter(Boolean);if(!d.pdvs.includes(j.pdv))d.pdvs.push(j.pdv);
   return j}
-$("btn-ctx").onclick=()=>{pintarCtx();abrir("p-ctx")};
-$("ctx-x").onclick=()=>cerrar("p-ctx");
-$("ctx-ok").onclick=async()=>{let d=$("sel-display").value,p=$("sel-pdv").value;
-  const nuevoD=d===NUEVO,nuevoP=p===NUEVO;
-  if(nuevoD)d=$("nuevo-disp").value.replace(/\s+/g," ").trim();
-  if(nuevoP)p=$("nuevo-pdv").value.replace(/\s+/g," ").trim().toUpperCase();
-  if(!d){toast(nuevoD?"Escribe tu nombre completo":"Elige tu nombre");return}
-  if(nuevoD&&d.length<3){toast("Escribe tu nombre completo");return}
-  if(!p){toast(nuevoP?"Escribe el nombre del PDV":"Elige el PDV");return}
-  if(nuevoD||nuevoP){const b=$("ctx-ok");b.disabled=true;b.textContent="Guardando…";
-    try{const j=await guardarPdv(d,p);d=j.display;p=j.pdv;toast(j.nuevo?"PDV guardado":"Ese PDV ya estaba guardado")}
-    catch(e){toast(e.message);return}
+$("ctx-ok").onclick=async()=>{let p=$("sel-pdv").value;const nuevo=p===NUEVO;
+  if(nuevo)p=$("nuevo-pdv").value.replace(/\s+/g," ").trim().toUpperCase();
+  if(!p){toast(nuevo?"Escribe el nombre del PDV":"Elige el PDV");return}
+  if(nuevo){const b=$("ctx-ok");b.disabled=true;b.textContent="Guardando…";
+    try{const j=await guardarPdv(p);p=j.pdv;toast(j.nuevo?"PDV guardado":"Ese PDV ya estaba guardado")}
+    catch(e){if(e.sesion)return salir(e.message);toast(e.message);return}
     finally{b.disabled=false;b.textContent="Listo"}
-    $("nuevo-disp").value="";$("nuevo-pdv").value=""}
-  S.ctx={display:d,pdv:p};ls.set("esc-ctx",JSON.stringify(S.ctx));cerrar("p-ctx");S.filtro="pdv";renderLista()};
+    $("nuevo-pdv").value=""}
+  S.ctx={display:SES.display,pdv:p};ls.set("esc-ctx",JSON.stringify(S.ctx));cerrar("p-ctx");S.filtro="pdv";renderLista()};
+$("ctx-salir").onclick=()=>{if(confirm("¿Salir? Para volver a entrar necesitas tu PIN."))salir()};
+$("btn-ctx").onclick=()=>SES?abrirPdv():abrirEntrar();
+$("ctx-x").onclick=()=>cerrar("p-ctx");
 
 /* ---------- escáner (foto del código) ---------- */
 // Apps Script no da permiso de cámara en vivo, así que se usa la cámara del teléfono para tomar una foto.
@@ -501,7 +539,7 @@ function recorteDeMarco(v){const vw=v.videoWidth,vh=v.videoHeight;if(!vw||!vh)re
   cvMarco.getContext("2d",{willReadFrequently:true}).drawImage(v,sx,sy,sw,sh,0,0,cvMarco.width,cvMarco.height);return cvMarco}
 function modoVivo(on){$("cam").classList.toggle("vivo",on);$("video").hidden=!on;$("marco").hidden=!on;$("ilus").style.display=on?"none":""}
 async function abrirCamara(){
-  if(!S.ctx.display){pintarCtx();abrir("p-ctx");toast("Primero elige tu nombre y PDV");return}
+  if(!SES||!S.ctx.pdv){SES?abrirPdv():abrirEntrar();toast(SES?"Primero elige tu PDV":"Primero entra con tu PIN");return}
   $("cam-manual").hidden=true;$("cod-man").value="";modoVivo(true);$("cam-est").textContent="Abriendo la cámara…";abrir("p-cam");leyendo=true;
   try{
     stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1280},height:{ideal:720}},audio:false});
@@ -738,7 +776,7 @@ async function guardar(){
   try{const d=await api("guardarEscaneo",{display:S.ctx.display,pdv:S.ctx.pdv,codigo:R.codigo,categoria:R.categoria,producto:R.producto,presentacion:R.presentacion,
       foto:R.fotoNueva||"",cantidad:Number(R.cantidad),fecha:R.fecha,lote:R.lote.trim()});
     cargar(d);S.reg=null;cerrar("p-reg");S.filtro="pdv";renderLista();window.scrollTo(0,0);toast("Producto guardado")}
-  catch(e2){S.guardando=false;pintarRegistro();$("r-err").textContent="No se pudo guardar: "+(e2&&e2.message||"revisa tu conexión");return}
+  catch(e2){S.guardando=false;if(e2.sesion){S.reg=null;cerrar("p-reg");salir(e2.message);return}pintarRegistro();$("r-err").textContent="No se pudo guardar: "+(e2&&e2.message||"revisa tu conexión");return}
   S.guardando=false}
 
 /* ---------- lista de opciones a pantalla completa ---------- */
@@ -755,10 +793,10 @@ $("opc-x").onclick=()=>{cerrar("p-opc");const r=opcRes;opcRes=null;r&&r(null)};
 function cargar(d){S.cat=d.catalogo||S.cat;S.regs=d.registros||[];S.codigos=d.codigos||[];if(d.reglas)S.reglas=d.reglas;
   if(S.ctx.display){let d=S.cat.displays.find(x=>x.nombre===S.ctx.display);
     if(!d){d={nombre:S.ctx.display,pdvs:[]};S.cat.displays.push(d)}          // display recién agregado: se mantiene
-    d.pdvs=(d.pdvs||[]).filter(Boolean);if(!d.pdvs.includes(S.ctx.pdv))d.pdvs.push(S.ctx.pdv)}}
-async function refrescar(aviso){$("btn-act").disabled=true;
+    d.pdvs=(d.pdvs||[]).filter(Boolean);if(S.ctx.pdv&&!d.pdvs.includes(S.ctx.pdv))d.pdvs.push(S.ctx.pdv)}}
+async function refrescar(aviso){if(!SES){if(aviso)abrirEntrar();return}$("btn-act").disabled=true;
   try{cargar(await api("getDataEscaner"));renderLista();if(aviso)toast("Actualizado")}
-  catch(e){if(aviso)toast("No se pudo actualizar. Revisa tu conexión.");else $("lista").innerHTML=`<div class="vacio"><b>No se pudo cargar</b>${esc(e&&e.message||"Revisa tu conexión y recarga.")}</div>`}
+  catch(e){if(e.sesion){salir(e.message);return}if(aviso)toast("No se pudo actualizar. Revisa tu conexión.");else $("lista").innerHTML=`<div class="vacio"><b>No se pudo cargar</b>${esc(e&&e.message||"Revisa tu conexión y recarga.")}</div>`}
   finally{$("btn-act").disabled=false}}
 $("btn-act").onclick=()=>refrescar(true);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&$("p-reg").hidden&&$("p-cam").hidden)refrescar(false)});
@@ -773,23 +811,24 @@ function cerrarMenu(){$("menu").hidden=true;if([...document.querySelectorAll(".p
 $("btn-menu").onclick=abrirMenu;
 $("menu").addEventListener("click",e=>{if(e.target.id==="menu")cerrarMenu()});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("menu").hidden)cerrarMenu()});
-$("m-cambiar").onclick=$("m-ctx").onclick=()=>{cerrarMenu();pintarCtx();abrir("p-ctx")};
-$("m-reporte").onclick=()=>{cerrarMenu();if(!S.ctx.display){pintarCtx();abrir("p-ctx");toast("Primero elige tu nombre y PDV");return}pintarRep();abrir("p-rep")};
+$("m-cambiar").onclick=$("m-ctx").onclick=()=>{cerrarMenu();SES?abrirPdv():abrirEntrar()};
+$("m-reporte").onclick=()=>{cerrarMenu();if(!SES||!S.ctx.pdv){SES?abrirPdv():abrirEntrar();toast("Primero entra con tu PIN y elige tu PDV");return}pintarRep();abrir("p-rep")};
 
 /* ---------- reporte de fechas próximas en PDF ---------- */
 const REP={alc:"pdv",est:"pend",cat:"todas"};
 function repFilas(){
   return S.regs.filter(r=>{
-    if(S.ctx.display&&r.display!==S.ctx.display)return false;
+    if(REP.alc!=="admin"&&S.ctx.display&&r.display!==S.ctx.display)return false;
     if(REP.alc==="pdv"&&r.pdv!==S.ctx.pdv)return false;
     if(REP.est==="pend"&&r.estado==="atendido")return false;
     if(REP.est==="aten"&&r.estado!=="atendido")return false;
     if(REP.cat!=="todas"&&String(r.categoria||"").toUpperCase()!==REP.cat)return false;
-    return true}).sort((a,b)=>(REP.alc==="todos"?String(a.pdv).localeCompare(String(b.pdv),"es"):0)||fechaRetiro(a).localeCompare(fechaRetiro(b))||(a.fecha||"").localeCompare(b.fecha||""));
+    return true}).sort((a,b)=>(REP.alc==="admin"?String(a.display).localeCompare(String(b.display),"es"):0)||(REP.alc!=="pdv"?String(a.pdv).localeCompare(String(b.pdv),"es"):0)||fechaRetiro(a).localeCompare(fechaRetiro(b))||(a.fecha||"").localeCompare(b.fecha||""));
 }
 function repResumen(filas){const c={vencido:0,critico:0,pronto:0,ok:0,atendido:0};
   filas.forEach(r=>{if(r.estado==="atendido")c.atendido++;else c[nivel(diasRet(r))]++});return c}
 function pintarRep(){
+  const bAdm=$("rep-alc").querySelector('[data-v="admin"]');bAdm.hidden=!esAdmin();if(REP.alc==="admin"&&!esAdmin())REP.alc="pdv";
   ["alc","est","cat"].forEach(k=>$("rep-"+k).querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===REP[k])));
   const f=repFilas(),c=repResumen(f);
   $("rep-res").innerHTML=f.length?`${f.length} ${f.length===1?"producto":"productos"} en el reporte<span>${[c.vencido&&c.vencido+" para retirar ya",c.critico&&c.critico+" en 1 a 3 días",c.pronto&&c.pronto+" esta semana",c.ok&&c.ok+" más adelante",c.atendido&&c.atendido+" atendidos"].filter(Boolean).join(" · ")}</span>`
@@ -812,7 +851,7 @@ function fotoJpg(src){if(!src)return Promise.resolve(null);if(FOTO_JPG.has(src))
   FOTO_JPG.set(src,p);return p}
 const COLOR={vencido:[[196,43,43],[251,229,227]],critico:[[169,99,0],[253,240,217]],pronto:[[125,108,0],[248,243,204]],ok:[[31,122,69],[225,243,232]],atendido:[[91,101,120],[233,237,245]]};
 function fCompleta(f){if(!f)return"";const[y,m,d]=f.split("-");return d+"/"+m+"/"+y}
-function nombreRep(){const d=new Date(),z=n=>String(n).padStart(2,"0");const lugar=(REP.alc==="pdv"?S.ctx.pdv:"todos_mis_pdv").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Za-z0-9#]+/g,"_");
+function nombreRep(){const d=new Date(),z=n=>String(n).padStart(2,"0");const lugar=(REP.alc==="pdv"?S.ctx.pdv:REP.alc==="admin"?"todos_los_displays":"todos_mis_pdv").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Za-z0-9#]+/g,"_");
   return `reporte_fechas_proximas_${lugar}_${d.getFullYear()}${z(d.getMonth()+1)}${z(d.getDate())}.pdf`}
 async function hacerReporte(){
   const filas=repFilas();if(!filas.length){toast("No hay productos con esos filtros");return null}
@@ -822,7 +861,7 @@ async function hacerReporte(){
   // encabezado
   doc.setFont("helvetica","bold");doc.setFontSize(18);doc.setTextColor(24,32,46);doc.text("Reporte de fechas próximas",14,18);
   doc.setFont("helvetica","normal");doc.setFontSize(10);doc.setTextColor(91,101,120);
-  const filtro=[`Display: ${S.ctx.display}`,REP.alc==="pdv"?`PDV: ${S.ctx.pdv}`:"Todos mis PDV",{pend:"Pendientes",aten:"Atendidos",todos:"Pendientes y atendidos"}[REP.est],REP.cat==="todas"?"CCN y CDN":REP.cat].join("  ·  ");
+  const filtro=[REP.alc==="admin"?"Todos los displays":`Display: ${S.ctx.display}`,REP.alc==="pdv"?`PDV: ${S.ctx.pdv}`:REP.alc==="admin"?"Todos los PDV":"Todos mis PDV",{pend:"Pendientes",aten:"Atendidos",todos:"Pendientes y atendidos"}[REP.est],REP.cat==="todas"?"CCN y CDN":REP.cat].join("  ·  ");
   doc.text(filtro,14,24.5);
   const ahora=new Date();doc.text(`Generado: ${fCompleta(iso(ahora))} ${String(ahora.getHours()).padStart(2,"0")}:${String(ahora.getMinutes()).padStart(2,"0")}`,W-14,18,{align:"right"});
   // resumen en colores
@@ -832,9 +871,10 @@ async function hacerReporte(){
     doc.setFont("helvetica","bold");doc.setFontSize(16);doc.text(String(c[k]),x+bw/2,39,{align:"center"});
     doc.setFont("helvetica","normal");doc.setFontSize(8);doc.text(t,x+bw/2,44,{align:"center"})});
   // tabla
-  const cuerpo=[];let pdvActual=null;
+  const cuerpo=[];let grupoActual=null;
   filas.forEach((r,i)=>{
-    if(REP.alc==="todos"&&r.pdv!==pdvActual){pdvActual=r.pdv;cuerpo.push([{content:r.pdv,colSpan:9,styles:{fillColor:[227,233,250],textColor:[35,70,168],fontStyle:"bold",fontSize:9.5}}])}
+    const grupo=REP.alc==="admin"?`${r.display} · ${r.pdv}`:r.pdv;
+    if(REP.alc!=="pdv"&&grupo!==grupoActual){grupoActual=grupo;cuerpo.push([{content:grupo,colSpan:9,styles:{fillColor:[227,233,250],textColor:[35,70,168],fontStyle:"bold",fontSize:9.5}}])}
     const at=r.estado==="atendido",n=diasRet(r),k=at?"atendido":nivel(n);
     cuerpo.push([{content:"",foto:fotos[i],styles:{minCellHeight:13}},r.presentacion||r.producto,codigoDe(r),r.categoria,String(r.cantidad),r.lote||"",fCompleta(r.fecha),fCompleta(fechaRetiro(r)),
       {content:at?"Atendido":txtRet(n),styles:{textColor:COLOR[k][0],fontStyle:"bold"}}])});
@@ -857,7 +897,8 @@ $("rep-comp").onclick=()=>conBoton($("rep-comp"),async()=>{const doc=await hacer
   if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:"Reporte de fechas próximas"})}catch(e){}}
   else{doc.save(nombreRep());toast("Este teléfono no permite compartir; se descargó el PDF")}});
 
-refrescar(false).then(()=>{if(!S.ctx.display&&S.cat.displays.length){pintarCtx();abrir("p-ctx")}});
+if(SES)refrescar(false).then(()=>{if(SES&&!S.ctx.pdv)abrirPdv()});
+else{renderLista();abrirEntrar()}
 </script>
 </body>
 </html>
