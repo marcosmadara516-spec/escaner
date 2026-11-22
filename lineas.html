@@ -85,7 +85,7 @@
     <div id="listaFalta"></div>
   </div>
 
-  <div class="version">Líneas bajas y faltantes · Versión 3</div>
+  <div class="version">Líneas bajas y faltantes · Versión 4</div>
 </main>
 
 <div class="pie">
@@ -105,7 +105,7 @@ const CLAVE   = 'CCN';
 /* =================================================================== */
 
 const $ = id => document.getElementById(id);
-const K_LISTA = 'lineas_lista_v1', K_PDV = 'lineas_pdv_v1', K_CAT = 'etiquetas_catalogo_v1';
+const K_LISTA = 'lineas_lista_v1', K_PDV = 'lineas_pdv_v1', K_CAT = 'etiquetas_catalogo_v2';
 const params = new URLSearchParams(location.search);
 const DISPLAY = params.get('display') || '';
 
@@ -125,7 +125,7 @@ function titulo(s) {
   if (!s || s !== s.toUpperCase()) return s;
   return s.toLowerCase().split(/(\s+)/).map(w => (UNIDADES.has(w.toUpperCase()) || /^\d/.test(w)) ? w : w.charAt(0).toUpperCase() + w.slice(1)).join('');
 }
-function nombreCat(c) { const k = catalogo[c]; return k ? titulo(k.pres || k.p || '') : ''; }
+function nombreCat(c) { const k = catalogo[c]; return k ? titulo(k.np || k.pres || k.p || '') : ''; }
 function hoy() { const d = new Date(), z = n => String(n).padStart(2, '0'); return `${z(d.getDate())}/${z(d.getMonth() + 1)}/${d.getFullYear()}`; }
 
 async function api(datos) {
@@ -136,7 +136,7 @@ function prepararCatalogo() {
   porNombre = {};
   const dl = $('sugerencias'); dl.innerHTML = '';
   Object.values(catalogo).forEach(x => {
-    const n = titulo(x.pres || x.p || ''); if (!n || porNombre[n.toLowerCase()]) return;
+    const n = titulo(x.np || x.pres || x.p || ''); if (!n || porNombre[n.toLowerCase()]) return;
     porNombre[n.toLowerCase()] = x.c;
     const o = document.createElement('option'); o.value = n; dl.appendChild(o);
   });

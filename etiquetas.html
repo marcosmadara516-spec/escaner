@@ -90,7 +90,7 @@
     <div id="lista"></div>
   </div>
 
-  <div class="version">Etiquetas CCN y CDN · Versión 3</div>
+  <div class="version">Etiquetas CCN y CDN · Versión 4</div>
 </main>
 
 <div class="pie">
@@ -118,7 +118,7 @@ const CLAVE   = 'CCN';
 
 const $ = id => document.getElementById(id);
 const CLAVE_LISTA = 'etiquetas_lista_v1';
-const CLAVE_CATALOGO = 'etiquetas_catalogo_v1';
+const CLAVE_CATALOGO = 'etiquetas_catalogo_v2';
 const CLAVE_FORMATO = 'etiquetas_formato_v2';
 
 let catalogo = {};   // código -> {c, cat, p, pres, precio}
@@ -149,9 +149,9 @@ function titulo(s) { // "CERVEZA TOÑA LATA 350 ML" -> "Cerveza Toña Lata 350 m
 function nombreDe(it) {
   if (it.nombre) return titulo(it.nombre);
   const k = catalogo[it.c];
-  return k ? titulo(k.pres || k.p || '') : '';
+  return k ? (k.np ? titulo(k.np) : titulo(k.pres || k.p || '')) : '';   // primero el nombre de la lista de precios
 }
-function marcaDe(it) { const k = catalogo[it.c]; return k && k.p ? titulo(k.p) : ''; }
+function marcaDe(it) { const k = catalogo[it.c]; if (!k) return ''; return k.marca ? titulo(k.marca) : (k.p ? titulo(k.p) : ''); }
 function precioDe(it) { return it.precio != null && it.precio !== '' ? it.precio : (catalogo[it.c] ? catalogo[it.c].precio : null); }
 
 async function api(datos) {
@@ -292,7 +292,7 @@ function pintar() {
   cont.innerHTML = '';
   lista.forEach((it, i) => {
     const k = catalogo[it.c];
-    const conocido = !!k && !!(k.p || k.pres);
+    const conocido = !!k && !!(k.np || k.p || k.pres);
     const p = precioDe(it);
     const fila = document.createElement('div');
     fila.className = 'item';
