@@ -121,7 +121,7 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
 .cam{flex:1;position:relative;background:#14171d;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:24px}
 .cam .ilus{width:min(70%,320px);height:auto}
 .cam video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-.cam .marco{position:absolute;left:8%;right:8%;top:32%;height:24%;border:3px solid #fff;border-radius:14px;box-shadow:0 0 0 2000px rgb(0 0 0 / .35)}
+.cam .marco{position:absolute;left:8%;right:8%;top:30%;height:28%;border:3px solid #fff;border-radius:14px;box-shadow:0 0 0 2000px rgb(0 0 0 / .35)}
 .cam .marco::after{content:"";position:absolute;left:6%;right:6%;top:50%;height:2px;background:#ff4d4d;box-shadow:0 0 8px #ff4d4d}
 .cam.vivo .est{position:absolute;left:0;right:0;bottom:18px;margin:0 auto;text-shadow:0 1px 3px #000}
 .cam .est{text-align:center;color:#fff;font-weight:600;max-width:340px}
@@ -192,7 +192,7 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
     <button class="chip" data-f="atendidos" aria-pressed="false">Atendidos</button>
   </div>
   <div id="lista" class="lista"><div class="cargando">Cargando…</div></div>
-  <p class="muted" style="text-align:center;font-size:.8rem;margin:20px 0 0">Escáner en vivo · Versión 10</p>
+  <p class="muted" style="text-align:center;font-size:.8rem;margin:20px 0 0">Escáner en vivo · Versión 11</p>
 </div>
 
 <button class="fab" id="fab" type="button" aria-label="Escanear código de barras">
@@ -298,7 +298,7 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>
       <span>Cambiar display y PDV</span>
     </button>
-    <div class="m-ver">Escáner en vivo · Versión 10</div>
+    <div class="m-ver">Escáner en vivo · Versión 11</div>
   </nav>
 </div>
 
@@ -453,6 +453,16 @@ async function leerCodigo(img){
 function normCod(c){c=String(c||"").replace(/\s+/g,"");return /^\d{12}$/.test(c)?"0"+c:c}
 /* cámara en vivo */
 let stream=null,loopT=null,leyendo=false;
+// Recorta solo lo que está dentro del rectángulo blanco (el video usa object-fit: cover), para no leer otros códigos.
+const cvMarco=document.createElement("canvas");
+function recorteDeMarco(v){const vw=v.videoWidth,vh=v.videoHeight;if(!vw||!vh)return null;
+  const vr=v.getBoundingClientRect(),mr=$("marco").getBoundingClientRect();if(!vr.width||!mr.width)return null;
+  const k=Math.max(vr.width/vw,vr.height/vh),ox=(vr.width-vw*k)/2,oy=(vr.height-vh*k)/2;
+  let sx=(mr.left-vr.left-ox)/k,sy=(mr.top-vr.top-oy)/k,sw=mr.width/k,sh=mr.height/k;
+  const mx=sw*.04,my=sh*.12;sx-=mx;sy-=my;sw+=2*mx;sh+=2*my;
+  sx=Math.max(0,sx);sy=Math.max(0,sy);sw=Math.min(vw-sx,sw);sh=Math.min(vh-sy,sh);if(sw<20||sh<20)return null;
+  const s=Math.min(1,1280/sw);cvMarco.width=Math.round(sw*s);cvMarco.height=Math.round(sh*s);
+  cvMarco.getContext("2d",{willReadFrequently:true}).drawImage(v,sx,sy,sw,sh,0,0,cvMarco.width,cvMarco.height);return cvMarco}
 function modoVivo(on){$("cam").classList.toggle("vivo",on);$("video").hidden=!on;$("marco").hidden=!on;$("ilus").style.display=on?"none":""}
 async function abrirCamara(){
   if(!S.ctx.display){pintarCtx();abrir("p-ctx");toast("Primero elige tu nombre y PDV");return}
@@ -462,12 +472,11 @@ async function abrirCamara(){
     if(!leyendo){pararCamara();return}
     const v=$("video");v.srcObject=stream;await v.play().catch(()=>{});
     try{const t=stream.getVideoTracks()[0],cap=t.getCapabilities?t.getCapabilities():{};if(cap.focusMode&&cap.focusMode.includes("continuous"))await t.applyConstraints({advanced:[{focusMode:"continuous"}]})}catch(e){}
-    $("cam-est").textContent="Apunta al código de barras";
+    $("cam-est").textContent="Pon el código dentro del rectángulo";
     const det=await getDetector();
-    if(det){const paso=async()=>{if(!leyendo)return;try{if(v.readyState>=2){const r=await det.detect(v);if(r&&r.length)return encontrado(r[0].rawValue)}}catch(e){}loopT=setTimeout(paso,120)};paso()}
+    if(det){const paso=async()=>{if(!leyendo)return;try{if(v.readyState>=2){const c=recorteDeMarco(v);if(c){const r=await det.detect(c);if(r&&r.length)return encontrado(r[0].rawValue)}}}catch(e){}loopT=setTimeout(paso,120)};paso()}
     else{const Z=await cargarZXing();const hints=new Map();hints.set(Z.DecodeHintType.TRY_HARDER,true);const lector=new Z.MultiFormatReader();lector.setHints(hints);
-      const cv=document.createElement("canvas");const cx=cv.getContext("2d",{willReadFrequently:true});
-      const paso=()=>{if(!leyendo)return;try{if(v.videoWidth){const s=Math.min(1,960/v.videoWidth);cv.width=Math.round(v.videoWidth*s);cv.height=Math.round(v.videoHeight*s);cx.drawImage(v,0,0,cv.width,cv.height);
+      const paso=()=>{if(!leyendo)return;try{const cv=recorteDeMarco(v);if(cv){
         const res=lector.decode(new Z.BinaryBitmap(new Z.HybridBinarizer(new Z.HTMLCanvasElementLuminanceSource(cv))));if(res)return encontrado(res.getText())}}catch(e){}loopT=setTimeout(paso,200)};paso()}
   }catch(e){pararCamara();modoVivo(false);
     $("cam-est").textContent=e&&e.name==="NotAllowedError"?"Sin permiso para la cámara. Actívalo en el candado de la barra de Chrome, o toma una foto del código.":"No se pudo abrir la cámara. Toma una foto del código o escríbelo."}

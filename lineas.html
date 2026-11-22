@@ -30,7 +30,8 @@
   .camara { position:relative; background:#000; border-radius:12px; overflow:hidden; aspect-ratio:4/3; display:none; margin-bottom:10px; }
   .camara.on { display:block; }
   .camara video { width:100%; height:100%; object-fit:cover; }
-  .camara .mira { position:absolute; left:10%; right:10%; top:38%; height:24%; border:3px solid #4fc3f7; border-radius:8px; box-shadow:0 0 0 9999px rgba(0,0,0,.35); }
+  .camara .mira { position:absolute; left:10%; right:10%; top:36%; height:28%; border:3px solid #fff; border-radius:12px; box-shadow:0 0 0 9999px rgba(0,0,0,.45); }
+  .camara .mira::after { content:''; position:absolute; left:6%; right:6%; top:50%; height:2px; background:#ff4d4d; box-shadow:0 0 8px #ff4d4d; }
   .estado { font-size:13px; color:var(--suave); margin-top:8px; min-height:18px; }
   h2 { font-size:15px; margin:4px 0 8px; display:flex; align-items:center; gap:8px; }
   h2 .punto { width:10px; height:10px; border-radius:50%; }
@@ -85,7 +86,7 @@
     <div id="listaFalta"></div>
   </div>
 
-  <div class="version">Líneas bajas y faltantes · Versión 4</div>
+  <div class="version">Líneas bajas y faltantes · Versión 5</div>
 </main>
 
 <div class="pie">
@@ -257,6 +258,21 @@ function leido(texto) {
   $('btnCamara').textContent = '📷 Escanear otro artículo';
   pitido(); agregar(c, true);
 }
+/* Recorta solo lo que está dentro del rectángulo (la cámara usa object-fit: cover) */
+const lienzoMarco = document.createElement('canvas');
+function recorteDeMarco(video, marco) {
+  const vw = video.videoWidth, vh = video.videoHeight; if (!vw || !vh) return null;
+  const vr = video.getBoundingClientRect(), mr = marco.getBoundingClientRect(); if (!vr.width || !mr.width) return null;
+  const k = Math.max(vr.width / vw, vr.height / vh);
+  const ox = (vr.width - vw * k) / 2, oy = (vr.height - vh * k) / 2;
+  let sx = (mr.left - vr.left - ox) / k, sy = (mr.top - vr.top - oy) / k, sw = mr.width / k, sh = mr.height / k;
+  const mx = sw * 0.04, my = sh * 0.12; sx -= mx; sy -= my; sw += 2 * mx; sh += 2 * my;   // un poco de margen
+  sx = Math.max(0, sx); sy = Math.max(0, sy); sw = Math.min(vw - sx, sw); sh = Math.min(vh - sy, sh);
+  if (sw < 20 || sh < 20) return null;
+  const s = Math.min(1, 1280 / sw); lienzoMarco.width = Math.round(sw * s); lienzoMarco.height = Math.round(sh * s);
+  lienzoMarco.getContext('2d', { willReadFrequently: true }).drawImage(video, sx, sy, sw, sh, 0, 0, lienzoMarco.width, lienzoMarco.height);
+  return lienzoMarco;
+}
 async function abrirCamara() {
   if (flujo || lectorZx) { cerrarCamara(); return; }
   $('camara').classList.add('on'); $('btnCamara').textContent = '⏹️ Terminar de escanear';
@@ -267,16 +283,23 @@ async function abrirCamara() {
       const f = ['ean_13','ean_8','upc_a','upc_e','code_128','code_39','itf'].filter(x => sop.includes(x));
       if (f.length) detector = new BarcodeDetector({ formats: f });
     }
-    if (detector) {
-      flujo = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } }, audio: false });
-      video.srcObject = flujo; await video.play();
-      const ciclo = async () => { if (!flujo) return; try { const r = await detector.detect(video); if (r.length) leido(r[0].rawValue); } catch (e) {} timerScan = setTimeout(ciclo, 180); };
-      ciclo();
-    } else {
-      if (!window.ZXing) { aviso('Cargando lector…'); await new Promise(r => setTimeout(r, 1200)); }
-      lectorZx = new ZXing.BrowserMultiFormatReader();
-      await lectorZx.decodeFromConstraints({ video: { facingMode: { ideal: 'environment' } } }, video, res => { if (res) leido(res.getText()); });
+    flujo = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } }, audio: false });
+    video.srcObject = flujo; await video.play();
+    let leer;
+    if (detector) leer = async c => { const r = await detector.detect(c); return r.length ? r[0].rawValue : ''; };
+    else {
+      if (!window.ZXing) { aviso('Cargando lector…'); await new Promise(r => setTimeout(r, 1500)); }
+      const hints = new Map(); hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+      const zx = new ZXing.MultiFormatReader(); zx.setHints(hints);
+      leer = async c => { try { const r = zx.decode(new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(new ZXing.HTMLCanvasElementLuminanceSource(c)))); return r ? r.getText() : ''; } catch (e) { return ''; } };
     }
+    const marco = document.querySelector('#camara .mira');
+    const ciclo = async () => {
+      if (!flujo) return;
+      try { const c = recorteDeMarco(video, marco); if (c) { const t = await leer(c); if (t) { leido(t); return; } } } catch (e) {}
+      timerScan = setTimeout(ciclo, 150);
+    };
+    ciclo();
   } catch (e) { cerrarCamara(); $('estado').textContent = 'No se pudo abrir la cámara: ' + e.message; }
 }
 function cerrarCamara() {
