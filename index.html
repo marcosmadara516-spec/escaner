@@ -147,11 +147,33 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(100px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 18px;border-radius:999px;font-weight:600;font-size:.9rem;z-index:40;max-width:calc(100% - 32px);text-align:center}
 .cargando{padding:40px;text-align:center;color:var(--muted)}
 @media (prefers-reduced-motion:no-preference){.fab{transition:transform .12s}.fab:active{transform:scale(.94)}}
+/* menú lateral */
+.menu-fondo{position:fixed;inset:0;z-index:25;background:rgb(0 0 0 / .5)}
+.menu-in{position:absolute;top:0;left:0;bottom:0;width:min(84%,340px);background:var(--surface);display:flex;flex-direction:column;overflow-y:auto;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);box-shadow:4px 0 24px rgb(0 0 0 / .3)}
+@media (prefers-reduced-motion:no-preference){.menu-in{animation:entraMenu .18s ease-out}@keyframes entraMenu{from{transform:translateX(-100%)}to{transform:none}}}
+.menu-cab{display:flex;align-items:center;gap:14px;padding:22px 12px 22px 20px;border-bottom:1px solid var(--line)}
+.avatar{width:56px;height:56px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-family:var(--f-display);font-weight:700;font-size:1.7rem;flex:none}
+.menu-who{flex:1;min-width:0}
+.menu-who b{display:block;font-size:1.08rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.menu-who span{display:block;font-size:.85rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.m-op{display:flex;align-items:center;gap:16px;width:100%;padding:16px 20px;border:0;background:none;text-align:left;font-weight:600;font-size:1rem;color:var(--fg);text-decoration:none;cursor:pointer}
+.m-op:active{background:var(--surface-2)}
+.m-op svg{width:24px;height:24px;flex:none;color:var(--muted)}
+.m-op small{display:block;font-weight:400;font-size:.8rem;color:var(--muted)}
+.m-sep{height:1px;background:var(--line);margin:6px 0}
+.m-ver{margin-top:auto;padding:16px 20px;font-size:.78rem;color:var(--muted)}
+/* reporte */
+.rep-res{background:var(--surface-2);border-radius:12px;padding:14px;font-weight:600}
+.rep-res span{display:block;font-weight:400;font-size:.85rem;color:var(--muted);margin-top:2px}
+.seg.ancho{display:flex;align-self:stretch}.seg.ancho button{flex:1;padding:10px 8px}
 </style>
 </head>
 <body>
 <div class="app">
   <header class="top gut">
+    <button class="ico" id="btn-menu" type="button" aria-label="Abrir menú" style="margin-left:-8px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
     <button class="t" id="btn-ctx" type="button" aria-label="Cambiar display y PDV">
       <b>Fechas Próximas</b><span id="ctx-txt">Elige tu nombre y PDV</span>
     </button>
@@ -170,7 +192,7 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
     <button class="chip" data-f="atendidos" aria-pressed="false">Atendidos</button>
   </div>
   <div id="lista" class="lista"><div class="cargando">Cargando…</div></div>
-  <p class="muted" style="text-align:center;font-size:.8rem;margin:20px 0 0">Escáner en vivo · Versión 9</p>
+  <p class="muted" style="text-align:center;font-size:.8rem;margin:20px 0 0">Escáner en vivo · Versión 10</p>
 </div>
 
 <button class="fab" id="fab" type="button" aria-label="Escanear código de barras">
@@ -247,6 +269,50 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
   <div class="pant-h"><b id="p-opc-t">Elegir</b><button class="btn" id="opc-x" type="button">Cerrar</button></div>
   <div class="gut" style="padding-block:10px;background:var(--surface);border-bottom:1px solid var(--line)"><input id="opc-q" type="search" placeholder="Buscar (opcional)" autocomplete="off"></div>
   <div class="pant-b" id="opc-list"></div>
+</section>
+
+<!-- Menú lateral -->
+<div class="menu-fondo" id="menu" hidden>
+  <nav class="menu-in" aria-label="Menú">
+    <div class="menu-cab">
+      <div class="avatar" id="m-ini">?</div>
+      <div class="menu-who"><b id="m-nom">Elige tu nombre</b><span id="m-pdv">Fechas Próximas</span></div>
+      <button class="ico" id="m-cambiar" type="button" aria-label="Cambiar display y PDV">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h15l-4-4M20 16H5l4 4"/></svg>
+      </button>
+    </div>
+    <button class="m-op" id="m-reporte" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5M9 13h7M9 17h7"/></svg>
+      <span>Reporte de fechas próximas<small>Descargar en PDF</small></span>
+    </button>
+    <a class="m-op" id="m-etq" href="etiquetas.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.5"/></svg>
+      <span>Crear etiquetas de precio<small>Escanear e imprimir 6 × 3 cm</small></span>
+    </a>
+    <a class="m-op" id="m-lineas" href="lineas.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h10M4 18h6"/><path d="m16 16 4 4M20 16l-4 4"/></svg>
+      <span>Líneas bajas y faltantes<small>Enviar reporte por WhatsApp</small></span>
+    </a>
+    <div class="m-sep"></div>
+    <button class="m-op" id="m-ctx" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>
+      <span>Cambiar display y PDV</span>
+    </button>
+    <div class="m-ver">Escáner en vivo · Versión 10</div>
+  </nav>
+</div>
+
+<!-- Reporte en PDF -->
+<section class="pant" id="p-rep" hidden aria-labelledby="p-rep-t">
+  <div class="pant-h"><b id="p-rep-t">Reporte de fechas próximas</b><button class="btn" id="rep-x" type="button">Cerrar</button></div>
+  <div class="pant-b"><div class="in gut">
+    <div class="f">PDV<div class="seg ancho" id="rep-alc"><button type="button" data-v="pdv" aria-pressed="true">Este PDV</button><button type="button" data-v="todos" aria-pressed="false">Todos mis PDV</button></div></div>
+    <div class="f">Estado<div class="seg ancho" id="rep-est"><button type="button" data-v="pend" aria-pressed="true">Pendientes</button><button type="button" data-v="aten" aria-pressed="false">Atendidos</button><button type="button" data-v="todos" aria-pressed="false">Todos</button></div></div>
+    <div class="f">Categoría<div class="seg ancho" id="rep-cat"><button type="button" data-v="todas" aria-pressed="true">Todas</button><button type="button" data-v="CCN" aria-pressed="false">CCN</button><button type="button" data-v="CDN" aria-pressed="false">CDN</button></div></div>
+    <div class="rep-res" id="rep-res"></div>
+    <button class="btn pri big" id="rep-pdf" type="button">⬇️ Descargar PDF</button>
+    <button class="btn big" id="rep-comp" type="button">Compartir (WhatsApp)</button>
+  </div></div>
 </section>
 
 <div id="toast" class="toast" hidden></div>
@@ -649,6 +715,101 @@ async function refrescar(aviso){$("btn-act").disabled=true;
   finally{$("btn-act").disabled=false}}
 $("btn-act").onclick=()=>refrescar(true);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&$("p-reg").hidden&&$("p-cam").hidden)refrescar(false)});
+/* ---------- menú lateral ---------- */
+function abrirMenu(){const d=S.ctx.display;
+  $("m-ini").textContent=d?d.trim().charAt(0).toUpperCase():"?";
+  $("m-nom").textContent=d||"Elige tu nombre";
+  $("m-pdv").textContent=d?S.ctx.pdv:"Fechas Próximas";
+  $("m-lineas").href="lineas.html"+(d?`?display=${encodeURIComponent(d)}&pdv=${encodeURIComponent(S.ctx.pdv)}`:"");
+  $("menu").hidden=false;document.body.style.overflow="hidden"}
+function cerrarMenu(){$("menu").hidden=true;if([...document.querySelectorAll(".pant")].every(p=>p.hidden))document.body.style.overflow=""}
+$("btn-menu").onclick=abrirMenu;
+$("menu").addEventListener("click",e=>{if(e.target.id==="menu")cerrarMenu()});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("menu").hidden)cerrarMenu()});
+$("m-cambiar").onclick=$("m-ctx").onclick=()=>{cerrarMenu();pintarCtx();abrir("p-ctx")};
+$("m-reporte").onclick=()=>{cerrarMenu();if(!S.ctx.display){pintarCtx();abrir("p-ctx");toast("Primero elige tu nombre y PDV");return}pintarRep();abrir("p-rep")};
+
+/* ---------- reporte de fechas próximas en PDF ---------- */
+const REP={alc:"pdv",est:"pend",cat:"todas"};
+function repFilas(){
+  return S.regs.filter(r=>{
+    if(S.ctx.display&&r.display!==S.ctx.display)return false;
+    if(REP.alc==="pdv"&&r.pdv!==S.ctx.pdv)return false;
+    if(REP.est==="pend"&&r.estado==="atendido")return false;
+    if(REP.est==="aten"&&r.estado!=="atendido")return false;
+    if(REP.cat!=="todas"&&String(r.categoria||"").toUpperCase()!==REP.cat)return false;
+    return true}).sort((a,b)=>(REP.alc==="todos"?String(a.pdv).localeCompare(String(b.pdv),"es"):0)||fechaRetiro(a).localeCompare(fechaRetiro(b))||(a.fecha||"").localeCompare(b.fecha||""));
+}
+function repResumen(filas){const c={vencido:0,critico:0,pronto:0,ok:0,atendido:0};
+  filas.forEach(r=>{if(r.estado==="atendido")c.atendido++;else c[nivel(diasRet(r))]++});return c}
+function pintarRep(){
+  ["alc","est","cat"].forEach(k=>$("rep-"+k).querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===REP[k])));
+  const f=repFilas(),c=repResumen(f);
+  $("rep-res").innerHTML=f.length?`${f.length} ${f.length===1?"producto":"productos"} en el reporte<span>${[c.vencido&&c.vencido+" para retirar ya",c.critico&&c.critico+" en 1 a 3 días",c.pronto&&c.pronto+" esta semana",c.ok&&c.ok+" más adelante",c.atendido&&c.atendido+" atendidos"].filter(Boolean).join(" · ")}</span>`
+    :`No hay productos con estos filtros<span>Cambia el PDV, el estado o la categoría.</span>`;
+  $("rep-pdf").disabled=$("rep-comp").disabled=!f.length;
+}
+["alc","est","cat"].forEach(k=>$("rep-"+k).onclick=e=>{const b=e.target.closest("button");if(!b)return;REP[k]=b.dataset.v;pintarRep()});
+$("rep-x").onclick=()=>cerrar("p-rep");
+function cargarScript(src,listo){return new Promise((ok,mal)=>{if(listo())return ok();const s=document.createElement("script");s.src=src;s.onload=()=>ok();s.onerror=()=>mal(new Error("No se pudo cargar el generador de PDF. Revisa tu internet."));document.head.appendChild(s)})}
+async function cargarPDF(){
+  await cargarScript("https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js",()=>window.jspdf);
+  await cargarScript("https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js",()=>window.jspdf&&window.jspdf.jsPDF.API.autoTable);
+  return window.jspdf.jsPDF}
+const FOTO_JPG=new Map();
+function fotoJpg(src){if(!src)return Promise.resolve(null);if(FOTO_JPG.has(src))return FOTO_JPG.get(src);
+  const p=new Promise(ok=>{const img=new Image();if(/^https?:/.test(src))img.crossOrigin="anonymous";
+    img.onload=()=>{try{const L=120,c=document.createElement("canvas");c.width=c.height=L;const g=c.getContext("2d");g.fillStyle="#fff";g.fillRect(0,0,L,L);
+      const k=Math.min(L/img.naturalWidth,L/img.naturalHeight);const w=img.naturalWidth*k,h=img.naturalHeight*k;g.drawImage(img,(L-w)/2,(L-h)/2,w,h);ok(c.toDataURL("image/jpeg",.85))}catch(e){ok(null)}};
+    img.onerror=()=>ok(null);img.src=src});
+  FOTO_JPG.set(src,p);return p}
+const COLOR={vencido:[[196,43,43],[251,229,227]],critico:[[169,99,0],[253,240,217]],pronto:[[125,108,0],[248,243,204]],ok:[[31,122,69],[225,243,232]],atendido:[[91,101,120],[233,237,245]]};
+function fCompleta(f){if(!f)return"";const[y,m,d]=f.split("-");return d+"/"+m+"/"+y}
+function nombreRep(){const d=new Date(),z=n=>String(n).padStart(2,"0");const lugar=(REP.alc==="pdv"?S.ctx.pdv:"todos_mis_pdv").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Za-z0-9#]+/g,"_");
+  return `reporte_fechas_proximas_${lugar}_${d.getFullYear()}${z(d.getMonth()+1)}${z(d.getDate())}.pdf`}
+async function hacerReporte(){
+  const filas=repFilas();if(!filas.length){toast("No hay productos con esos filtros");return null}
+  const jsPDF=await cargarPDF();
+  const fotos=await Promise.all(filas.map(r=>fotoJpg(fotoDe(r))));
+  const doc=new jsPDF({unit:"mm",format:"letter",compress:true});const W=doc.internal.pageSize.getWidth();
+  // encabezado
+  doc.setFont("helvetica","bold");doc.setFontSize(18);doc.setTextColor(24,32,46);doc.text("Reporte de fechas próximas",14,18);
+  doc.setFont("helvetica","normal");doc.setFontSize(10);doc.setTextColor(91,101,120);
+  const filtro=[`Display: ${S.ctx.display}`,REP.alc==="pdv"?`PDV: ${S.ctx.pdv}`:"Todos mis PDV",{pend:"Pendientes",aten:"Atendidos",todos:"Pendientes y atendidos"}[REP.est],REP.cat==="todas"?"CCN y CDN":REP.cat].join("  ·  ");
+  doc.text(filtro,14,24.5);
+  const ahora=new Date();doc.text(`Generado: ${fCompleta(iso(ahora))} ${String(ahora.getHours()).padStart(2,"0")}:${String(ahora.getMinutes()).padStart(2,"0")}`,W-14,18,{align:"right"});
+  // resumen en colores
+  const c=repResumen(filas);const cajas=[["vencido","Retirar ya"],["critico","En 1 a 3 días"],["pronto","Esta semana"],["ok","Más adelante"],["atendido","Atendidos"]];
+  const bw=(W-28-4*3)/5;cajas.forEach(([k,t],i)=>{const x=14+i*(bw+3),[fg,bg]=COLOR[k];
+    doc.setFillColor(...bg);doc.roundedRect(x,30,bw,17,2,2,"F");doc.setTextColor(...fg);
+    doc.setFont("helvetica","bold");doc.setFontSize(16);doc.text(String(c[k]),x+bw/2,39,{align:"center"});
+    doc.setFont("helvetica","normal");doc.setFontSize(8);doc.text(t,x+bw/2,44,{align:"center"})});
+  // tabla
+  const cuerpo=[];let pdvActual=null;
+  filas.forEach((r,i)=>{
+    if(REP.alc==="todos"&&r.pdv!==pdvActual){pdvActual=r.pdv;cuerpo.push([{content:r.pdv,colSpan:9,styles:{fillColor:[227,233,250],textColor:[35,70,168],fontStyle:"bold",fontSize:9.5}}])}
+    const at=r.estado==="atendido",n=diasRet(r),k=at?"atendido":nivel(n);
+    cuerpo.push([{content:"",foto:fotos[i],styles:{minCellHeight:13}},r.presentacion||r.producto,codigoDe(r),r.categoria,String(r.cantidad),r.lote||"",fCompleta(r.fecha),fCompleta(fechaRetiro(r)),
+      {content:at?"Atendido":txtRet(n),styles:{textColor:COLOR[k][0],fontStyle:"bold"}}])});
+  doc.autoTable({startY:52,margin:{left:14,right:14,bottom:16},
+    head:[["Foto","Producto","Código","Cat.","Cant.","Lote","Vence","Retirar el","Estado"]],body:cuerpo,
+    styles:{font:"helvetica",fontSize:8,cellPadding:1.6,valign:"middle",textColor:[24,32,46],lineColor:[225,229,238],lineWidth:.2},
+    headStyles:{fillColor:[24,32,46],textColor:255,fontStyle:"bold",fontSize:8},
+    alternateRowStyles:{fillColor:[247,248,251]},
+    columnStyles:{0:{cellWidth:14},2:{cellWidth:26,fontSize:7.5},3:{cellWidth:10,halign:"center"},4:{cellWidth:10,halign:"center"},5:{cellWidth:12},6:{cellWidth:17},7:{cellWidth:17},8:{cellWidth:29}},
+    didDrawCell:d=>{if(d.section==="body"&&d.column.index===0&&d.cell.raw&&d.cell.raw.foto){const s=Math.min(d.cell.width,d.cell.height)-2;
+      try{doc.addImage(d.cell.raw.foto,"JPEG",d.cell.x+(d.cell.width-s)/2,d.cell.y+(d.cell.height-s)/2,s,s)}catch(e){}}}});
+  const paginas=doc.internal.getNumberOfPages();
+  for(let i=1;i<=paginas;i++){doc.setPage(i);doc.setFont("helvetica","normal");doc.setFontSize(8);doc.setTextColor(140,148,163);
+    const H=doc.internal.pageSize.getHeight();doc.text("Fechas Próximas CCN y CDN",14,H-8);doc.text(`Página ${i} de ${paginas}`,W-14,H-8,{align:"right"})}
+  return doc}
+async function conBoton(b,fn){const t=b.textContent;b.disabled=true;b.textContent="Preparando…";try{await fn()}catch(e){toast(e&&e.message||"No se pudo crear el PDF")}finally{b.disabled=false;b.textContent=t}}
+$("rep-pdf").onclick=()=>conBoton($("rep-pdf"),async()=>{const doc=await hacerReporte();if(doc){doc.save(nombreRep());toast("PDF descargado")}});
+$("rep-comp").onclick=()=>conBoton($("rep-comp"),async()=>{const doc=await hacerReporte();if(!doc)return;
+  const f=new File([doc.output("blob")],nombreRep(),{type:"application/pdf"});
+  if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:"Reporte de fechas próximas"})}catch(e){}}
+  else{doc.save(nombreRep());toast("Este teléfono no permite compartir; se descargó el PDF")}});
+
 refrescar(false).then(()=>{if(!S.ctx.display&&S.cat.displays.length){pintarCtx();abrir("p-ctx")}});
 </script>
 </body>
