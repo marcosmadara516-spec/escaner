@@ -193,7 +193,7 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
     <button class="chip" data-f="admin" aria-pressed="false" hidden>Todos los displays</button>
   </div>
   <div id="lista" class="lista"><div class="cargando">Cargando…</div></div>
-  <p class="muted" style="text-align:center;font-size:.8rem;margin:20px 0 0">Escáner en vivo · Versión 14</p>
+  <p class="muted" style="text-align:center;font-size:.8rem;margin:20px 0 0">Escáner en vivo · Versión 15</p>
 </div>
 
 <button class="fab" id="fab" type="button" aria-label="Escanear código de barras">
@@ -316,7 +316,7 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>
       <span>Cambiar display y PDV</span>
     </button>
-    <div class="m-ver">Escáner en vivo · Versión 14</div>
+    <div class="m-ver">Escáner en vivo · Versión 15</div>
   </nav>
 </div>
 
@@ -376,6 +376,7 @@ async function api(fn,...a){
   const extra={getDataEscaner:{accion:"etq_data2"},guardarEscaneo:{accion:"etq_guardar",datos:a[0]},cambiarEstado:{accion:"etq_estado",id:a[0],estado:a[1]}}[fn];
   const j=await post({...extra,display:SES.display,token:SES.token});
   if(j.rol&&j.rol!==SES.rol){SES.rol=j.rol;ls.set("esc-ses",JSON.stringify(SES))}
+  if(fn==="getDataEscaner")S.primeraFoto=j.primeraFoto!==false;
   return j.data}
 const norm=t=>String(t||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
 function coincide(txt,q){const toks=norm(q).split(/\s+/).filter(Boolean);if(!toks.length)return true;const n=norm(txt),ns=n.replace(/\s+/g,"");return toks.every(t=>n.includes(t)||ns.includes(t))}
@@ -607,14 +608,16 @@ function actualizarHint(){const h=$("r-hint");if(h)h.innerHTML=hintRetiro()}
 function pintarRegistro(){
   const R=S.reg;const ps=presDe(R.categoria,R.producto);
   const foto=R.fotoNueva||R.foto;
+  // Solo el admin cambia la foto o el producto de un código ya guardado. Un display puede poner la primera foto si no tiene.
+  const puedeFoto=esAdmin()||(!R.foto&&S.primeraFoto!==false);
   $("reg-in").innerHTML=`
     <div class="tarjeta">
-      <div class="foto">${foto?`<img src="${esc(foto)}" alt="">`:esc((R.producto||"?").slice(0,1))}<button type="button" id="r-foto" aria-label="Poner foto del producto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></button></div>
+      <div class="foto">${foto?`<img src="${esc(foto)}" alt="">`:esc((R.producto||"?").slice(0,1))}${puedeFoto?`<button type="button" id="r-foto" aria-label="Poner foto del producto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></button>`:""}</div>
       <div>
         <div class="mini">${R.codigo?"Código "+esc(R.codigo):"Sin código de barras"}</div>
         <div class="nm">${R.producto?esc(R.presentacion||R.producto):"Producto nuevo"}</div>
         <div class="mini">${R.producto?esc(R.categoria+" · "+R.producto):R.codigo?"Este código todavía no está guardado":""}</div>
-        ${R.conocido&&!R.editar?`<button class="link" id="r-editar" type="button">Cambiar producto</button>`:""}
+        ${R.conocido&&!R.editar&&esAdmin()?`<button class="link" id="r-editar" type="button">Cambiar producto</button>`:""}
       </div>
     </div>
     ${R.editar?`<div class="nuevo">
@@ -641,10 +644,10 @@ $("reg-in").addEventListener("input",e=>{const R=S.reg;if(!R)return;
 $("reg-in").addEventListener("change",e=>{if(e.target.id==="r-fecha")S.reg.fecha=e.target.value;if(["r-fecha","r-dias","r-nom","r-pres-txt"].includes(e.target.id))actualizarHint()});
 $("reg-in").addEventListener("click",async e=>{const R=S.reg;const t=e.target.closest("button");if(!t)return;
   if(t.dataset.cat&&t.dataset.cat!==R.categoria){R.categoria=t.dataset.cat;R.producto="";R.presentacion="";pintarRegistro()}
-  else if(t.id==="r-editar"){R.editar=true;pintarRegistro()}
+  else if(t.id==="r-editar"){if(!esAdmin())return;R.editar=true;pintarRegistro()}
   else if(t.id==="r-prod"){const v=await elegir("Producto "+R.categoria,S.cat.productos[R.categoria]||[],R.producto);if(v!=null&&v!==R.producto){R.producto=v;R.presentacion="";pintarRegistro()}}
   else if(t.id==="r-pres"){const v=await elegir(R.producto,[...presDe(R.categoria,R.producto)].sort((a,b)=>a.localeCompare(b,"es")),R.presentacion);if(v!=null){R.presentacion=v;pintarRegistro()}}
-  else if(t.id==="r-foto"){opcionesFoto()}
+  else if(t.id==="r-foto"){if(!(esAdmin()||(!R.foto&&S.primeraFoto!==false)))return;opcionesFoto()}
   else if(t.id==="r-guardar"){guardar()}});
 /* ---------- foto del producto: cámara o galería, con quitar fondo ---------- */
 // Quita el fondo liso que toca los bordes de la foto y deja el producto recortado sobre blanco.
