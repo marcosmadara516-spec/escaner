@@ -193,7 +193,7 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
     <button class="chip" data-f="admin" aria-pressed="false" hidden>Todos los displays</button>
   </div>
   <div id="lista" class="lista"><div class="cargando">Cargando…</div></div>
-  <p class="muted" style="text-align:center;font-size:.8rem;margin:20px 0 0">Escáner en vivo · Versión 13</p>
+  <p class="muted" style="text-align:center;font-size:.8rem;margin:20px 0 0">Escáner en vivo · Versión 14</p>
 </div>
 
 <button class="fab" id="fab" type="button" aria-label="Escanear código de barras">
@@ -307,12 +307,16 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h10M4 18h6"/><path d="m16 16 4 4M20 16l-4 4"/></svg>
       <span>Líneas bajas y faltantes<small>Enviar reporte por WhatsApp</small></span>
     </a>
+    <button class="m-op" id="m-prod" type="button" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>
+      <span>Agregar producto al catálogo<small>Productos y gramajes nuevos · Admin</small></span>
+    </button>
     <div class="m-sep"></div>
     <button class="m-op" id="m-ctx" type="button">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>
       <span>Cambiar display y PDV</span>
     </button>
-    <div class="m-ver">Escáner en vivo · Versión 13</div>
+    <div class="m-ver">Escáner en vivo · Versión 14</div>
   </nav>
 </div>
 
@@ -326,6 +330,21 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
     <div class="rep-res" id="rep-res"></div>
     <button class="btn pri big" id="rep-pdf" type="button">⬇️ Descargar PDF</button>
     <button class="btn big" id="rep-comp" type="button">Compartir (WhatsApp)</button>
+  </div></div>
+</section>
+
+<!-- Agregar producto al catálogo (solo administrador) -->
+<section class="pant" id="p-prod" hidden aria-labelledby="p-prod-t">
+  <div class="pant-h"><b id="p-prod-t">Agregar al catálogo</b><button class="btn" id="prod-x" type="button">Cerrar</button></div>
+  <div class="pant-b"><div class="in gut">
+    <p class="muted" style="margin:0">Solo tú ves esta opción. Lo que agregues aparece para todos los displays al actualizar.</p>
+    <div class="f">Categoría<div class="seg ancho" id="prod-cat"><button type="button" data-v="CCN" aria-pressed="true">CCN</button><button type="button" data-v="CDN" aria-pressed="false">CDN</button></div></div>
+    <label class="f">Producto (marca) <span class="req">*</span><input id="prod-nom" list="prod-lista" placeholder="Ej. GALLO" autocomplete="off" maxlength="60" style="text-transform:uppercase"></label>
+    <datalist id="prod-lista"></datalist>
+    <p class="mini" id="prod-info" style="margin:-6px 0 0"></p>
+    <label class="f">Presentación / gramaje <span class="req">*</span><input id="prod-pres" placeholder="Ej. CERVEZA GALLO BOTELLA 350 ML 6 PACK" autocomplete="off" maxlength="120" style="text-transform:uppercase"></label>
+    <div class="rep-res" id="prod-exist" hidden></div>
+    <button class="btn pri big" id="prod-ok" type="button">Guardar en el catálogo</button>
   </div></div>
 </section>
 
@@ -806,6 +825,7 @@ function abrirMenu(){const d=S.ctx.display;
   $("m-nom").textContent=d||"Elige tu nombre";
   $("m-pdv").textContent=d?S.ctx.pdv:"Fechas Próximas";
   $("m-lineas").href="lineas.html"+(d?`?display=${encodeURIComponent(d)}&pdv=${encodeURIComponent(S.ctx.pdv)}`:"");
+  $("m-prod").hidden=!esAdmin();
   $("menu").hidden=false;document.body.style.overflow="hidden"}
 function cerrarMenu(){$("menu").hidden=true;if([...document.querySelectorAll(".pant")].every(p=>p.hidden))document.body.style.overflow=""}
 $("btn-menu").onclick=abrirMenu;
@@ -813,6 +833,38 @@ $("menu").addEventListener("click",e=>{if(e.target.id==="menu")cerrarMenu()});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("menu").hidden)cerrarMenu()});
 $("m-cambiar").onclick=$("m-ctx").onclick=()=>{cerrarMenu();SES?abrirPdv():abrirEntrar()};
 $("m-reporte").onclick=()=>{cerrarMenu();if(!SES||!S.ctx.pdv){SES?abrirPdv():abrirEntrar();toast("Primero entra con tu PIN y elige tu PDV");return}pintarRep();abrir("p-rep")};
+
+/* ---------- agregar producto al catálogo (admin) ---------- */
+let PCAT="CCN";
+const MAY=t=>String(t||"").replace(/\s+/g," ").trim().toUpperCase();
+function prodExistente(){const v=MAY($("prod-nom").value);return (S.cat.productos[PCAT]||[]).find(p=>MAY(p)===v)||""}
+function pintarProd(){
+  $("prod-cat").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===PCAT));
+  $("prod-lista").innerHTML=(S.cat.productos[PCAT]||[]).map(p=>`<option value="${esc(p)}">`).join("");
+  const v=MAY($("prod-nom").value),ex=prodExistente(),pres=ex?presDe(PCAT,ex):[];
+  $("prod-info").textContent=!v?"Elige uno de la lista o escribe uno nuevo.":ex?`Producto existente · ${pres.length} ${pres.length===1?"presentación":"presentaciones"}`:"Producto nuevo: se crea con esta presentación.";
+  $("prod-exist").hidden=!pres.length;
+  $("prod-exist").innerHTML=pres.length?`Ya tiene:<span>${pres.slice(0,12).map(esc).join(" · ")}${pres.length>12?` · y ${pres.length-12} más`:""}</span>`:"";
+}
+$("m-prod").onclick=()=>{cerrarMenu();if(!esAdmin()){toast("Solo el administrador");return}pintarProd();abrir("p-prod");setTimeout(()=>$("prod-nom").focus(),150)};
+$("prod-x").onclick=()=>cerrar("p-prod");
+$("prod-cat").onclick=e=>{const b=e.target.closest("button");if(!b)return;PCAT=b.dataset.v;pintarProd()};
+$("prod-nom").oninput=pintarProd;
+$("prod-pres").addEventListener("keydown",e=>{if(e.key==="Enter")$("prod-ok").click()});
+$("prod-ok").onclick=async()=>{
+  const prod=prodExistente()||MAY($("prod-nom").value),pres=MAY($("prod-pres").value);
+  if(prod.length<2){toast("Escribe el nombre del producto");$("prod-nom").focus();return}
+  if(pres.length<2){toast("Escribe la presentación o gramaje");$("prod-pres").focus();return}
+  if(presDe(PCAT,prod).some(x=>MAY(x)===pres)){toast("Esa presentación ya está en el catálogo");return}
+  const b=$("prod-ok");b.disabled=true;b.textContent="Guardando…";
+  try{const j=await post({accion:"etq_producto",display:SES.display,token:SES.token,categoria:PCAT,producto:prod,presentacion:pres});
+    const c=j.categoria;S.cat.productos[c]=S.cat.productos[c]||[];S.cat.presentaciones[c]=S.cat.presentaciones[c]||{};
+    if(!S.cat.productos[c].includes(j.producto)){S.cat.productos[c].push(j.producto);S.cat.productos[c].sort((a,b)=>a.localeCompare(b,"es"))}
+    const L=S.cat.presentaciones[c][j.producto]=S.cat.presentaciones[c][j.producto]||[];if(!L.includes(j.presentacion))L.push(j.presentacion);
+    toast(!j.nuevo?"Ya estaba en el catálogo":j.productoNuevo?"Producto nuevo guardado":"Presentación guardada");
+    $("prod-nom").value=j.producto;$("prod-pres").value="";pintarProd();$("prod-pres").focus()}
+  catch(e){if(e.sesion){cerrar("p-prod");return salir(e.message)}toast(e.message)}
+  finally{b.disabled=false;b.textContent="Guardar en el catálogo"}};
 
 /* ---------- reporte de fechas próximas en PDF ---------- */
 const REP={alc:"pdv",est:"pend",cat:"todas"};
