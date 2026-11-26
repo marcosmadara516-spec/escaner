@@ -193,7 +193,7 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
     <button class="chip" data-f="admin" aria-pressed="false" hidden>Todos los displays</button>
   </div>
   <div id="lista" class="lista"><div class="cargando">Cargando…</div></div>
-  <p class="muted" style="text-align:center;font-size:.8rem;margin:20px 0 0">Escáner en vivo · Versión 16</p>
+  <p class="muted" style="text-align:center;font-size:.8rem;margin:20px 0 0">Escáner en vivo · Versión 17</p>
 </div>
 
 <button class="fab" id="fab" type="button" aria-label="Escanear código de barras">
@@ -316,7 +316,7 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>
       <span>Cambiar display y PDV</span>
     </button>
-    <div class="m-ver">Escáner en vivo · Versión 16</div>
+    <div class="m-ver">Escáner en vivo · Versión 17</div>
   </nav>
 </div>
 
@@ -324,7 +324,22 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
 <section class="pant" id="p-rep" hidden aria-labelledby="p-rep-t">
   <div class="pant-h"><b id="p-rep-t">Reporte de fechas próximas</b><button class="btn" id="rep-x" type="button">Cerrar</button></div>
   <div class="pant-b"><div class="in gut">
-    <div class="f">PDV<div class="seg ancho" id="rep-alc"><button type="button" data-v="pdv" aria-pressed="true">Este PDV</button><button type="button" data-v="todos" aria-pressed="false">Todos mis PDV</button><button type="button" data-v="admin" aria-pressed="false" hidden>Todos los displays</button></div></div>
+    <div class="row2">
+      <label class="f">Display<select id="rep-disp"></select></label>
+      <label class="f">PDV<select id="rep-pdv"></select></label>
+    </div>
+    <div class="f">Filtrar fechas por<div class="seg ancho" id="rep-campo"><button type="button" data-v="vence" aria-pressed="true">Vencimiento</button><button type="button" data-v="retiro" aria-pressed="false">Fecha de retiro</button></div></div>
+    <div class="row2">
+      <label class="f">Desde<input type="date" id="rep-desde"></label>
+      <label class="f">Hasta<input type="date" id="rep-hasta"></label>
+    </div>
+    <div class="chips" id="rep-rapido" style="padding:0;flex-wrap:wrap">
+      <button class="chip" type="button" data-r="todo">Todas las fechas</button>
+      <button class="chip" type="button" data-r="hoy">Atrasados y hoy</button>
+      <button class="chip" type="button" data-r="semana">Próximos 7 días</button>
+      <button class="chip" type="button" data-r="mes">Este mes</button>
+      <button class="chip" type="button" data-r="sig">Próximo mes</button>
+    </div>
     <div class="f">Estado<div class="seg ancho" id="rep-est"><button type="button" data-v="pend" aria-pressed="true">Pendientes</button><button type="button" data-v="aten" aria-pressed="false">Atendidos</button><button type="button" data-v="todos" aria-pressed="false">Todos</button></div></div>
     <div class="f">Categoría<div class="seg ancho" id="rep-cat"><button type="button" data-v="todas" aria-pressed="true">Todas</button><button type="button" data-v="CCN" aria-pressed="false">CCN</button><button type="button" data-v="CDN" aria-pressed="false">CDN</button></div></div>
     <div class="rep-res" id="rep-res"></div>
@@ -1034,27 +1049,62 @@ $("prod-ok").onclick=async()=>{
   finally{b.disabled=false;b.textContent="Guardar en el catálogo"}};
 
 /* ---------- reporte de fechas próximas en PDF ---------- */
-const REP={alc:"pdv",est:"pend",cat:"todas"};
+const TODOS="__todos__";
+const REP={disp:"",pdv:TODOS,est:"pend",cat:"todas",campo:"vence",desde:"",hasta:"",listo:false};
+const ordenar=a=>[...new Set(a.filter(Boolean))].sort((x,y)=>String(x).localeCompare(String(y),"es"));
+function repDisplays(){return esAdmin()?ordenar([...S.cat.displays.map(d=>d.nombre),...S.regs.map(r=>r.display)]):[SES?SES.display:""]}
+function repPdvs(disp){
+  const deCat=S.cat.displays.filter(d=>disp===TODOS||d.nombre===disp).flatMap(d=>d.pdvs||[]);
+  const deRegs=S.regs.filter(r=>disp===TODOS||r.display===disp).map(r=>r.pdv);
+  return ordenar([...deCat,...deRegs])}
+function fechaDe(r){return REP.campo==="retiro"?fechaRetiro(r):r.fecha}
 function repFilas(){
   return S.regs.filter(r=>{
-    if(REP.alc!=="admin"&&S.ctx.display&&r.display!==S.ctx.display)return false;
-    if(REP.alc==="pdv"&&r.pdv!==S.ctx.pdv)return false;
+    if(!esAdmin()){if(SES&&r.display!==SES.display)return false}
+    else if(REP.disp!==TODOS&&r.display!==REP.disp)return false;
+    if(REP.pdv!==TODOS&&r.pdv!==REP.pdv)return false;
     if(REP.est==="pend"&&r.estado==="atendido")return false;
     if(REP.est==="aten"&&r.estado!=="atendido")return false;
     if(REP.cat!=="todas"&&String(r.categoria||"").toUpperCase()!==REP.cat)return false;
-    return true}).sort((a,b)=>(REP.alc==="admin"?String(a.display).localeCompare(String(b.display),"es"):0)||(REP.alc!=="pdv"?String(a.pdv).localeCompare(String(b.pdv),"es"):0)||fechaRetiro(a).localeCompare(fechaRetiro(b))||(a.fecha||"").localeCompare(b.fecha||""));
+    const f=fechaDe(r);
+    if(REP.desde&&(!f||f<REP.desde))return false;
+    if(REP.hasta&&(!f||f>REP.hasta))return false;
+    return true}).sort((a,b)=>String(a.display).localeCompare(String(b.display),"es")||String(a.pdv).localeCompare(String(b.pdv),"es")||fechaRetiro(a).localeCompare(fechaRetiro(b))||(a.fecha||"").localeCompare(b.fecha||""));
 }
+// atajos de fechas
+function rango(tipo){const h=hoy(),y=h.getFullYear(),m=h.getMonth();
+  return {todo:["",""],hoy:["",iso(h)],semana:[iso(h),iso(new Date(y,m,h.getDate()+7))],
+    mes:[iso(new Date(y,m,1)),iso(new Date(y,m+1,0))],sig:[iso(new Date(y,m+1,1)),iso(new Date(y,m+2,0))]}[tipo]}
+function textoFechas(){if(!REP.desde&&!REP.hasta)return"";const q=REP.campo==="retiro"?"Retiro":"Vence";
+  return REP.desde&&REP.hasta?`${q} del ${fCompleta(REP.desde)} al ${fCompleta(REP.hasta)}`:REP.desde?`${q} desde el ${fCompleta(REP.desde)}`:`${q} hasta el ${fCompleta(REP.hasta)}`}
+function etiquetaDisp(){return REP.disp===TODOS?"Todos los displays":REP.disp}
+function etiquetaPdv(){return REP.pdv===TODOS?(REP.disp===TODOS?"Todos los PDV":esAdmin()&&REP.disp!==SES.display?"Todos sus PDV":"Todos mis PDV"):REP.pdv}
 function repResumen(filas){const c={vencido:0,critico:0,pronto:0,ok:0,atendido:0};
   filas.forEach(r=>{if(r.estado==="atendido")c.atendido++;else c[nivel(diasRet(r))]++});return c}
 function pintarRep(){
-  const bAdm=$("rep-alc").querySelector('[data-v="admin"]');bAdm.hidden=!esAdmin();if(REP.alc==="admin"&&!esAdmin())REP.alc="pdv";
-  ["alc","est","cat"].forEach(k=>$("rep-"+k).querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===REP[k])));
-  const f=repFilas(),c=repResumen(f);
-  $("rep-res").innerHTML=f.length?`${f.length} ${f.length===1?"producto":"productos"} en el reporte<span>${[c.vencido&&c.vencido+" para retirar ya",c.critico&&c.critico+" en 1 a 3 días",c.pronto&&c.pronto+" esta semana",c.ok&&c.ok+" más adelante",c.atendido&&c.atendido+" atendidos"].filter(Boolean).join(" · ")}</span>`
-    :`No hay productos con estos filtros<span>Cambia el PDV, el estado o la categoría.</span>`;
+  if(!REP.listo||(!esAdmin()&&REP.disp!==SES.display)){REP.disp=SES.display;REP.pdv=S.ctx.pdv||TODOS;REP.listo=true}
+  const ds=repDisplays();if(REP.disp!==TODOS&&!ds.includes(REP.disp))ds.push(REP.disp);
+  $("rep-disp").innerHTML=(esAdmin()?`<option value="${TODOS}" ${REP.disp===TODOS?"selected":""}>Todos los displays</option>`:"")+ds.map(d=>`<option ${d===REP.disp?"selected":""}>${esc(d)}</option>`).join("");
+  $("rep-disp").disabled=!esAdmin();
+  const ps=repPdvs(REP.disp);if(REP.pdv!==TODOS&&!ps.includes(REP.pdv))REP.pdv=TODOS;
+  $("rep-pdv").innerHTML=`<option value="${TODOS}">${esc(REP.disp===TODOS?"Todos los PDV":esAdmin()&&REP.disp!==SES.display?"Todos sus PDV":"Todos mis PDV")}</option>`+ps.map(p=>`<option ${p===REP.pdv?"selected":""}>${esc(p)}</option>`).join("");
+  $("rep-pdv").value=REP.pdv;
+  ["est","cat","campo"].forEach(k=>$("rep-"+k).querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===REP[k])));
+  $("rep-desde").value=REP.desde;$("rep-hasta").value=REP.hasta;
+  document.querySelectorAll("#rep-rapido .chip").forEach(c=>{const[a,b]=rango(c.dataset.r);c.setAttribute("aria-pressed",a===REP.desde&&b===REP.hasta)});
+  const malas=REP.desde&&REP.hasta&&REP.desde>REP.hasta;
+  const f=malas?[]:repFilas(),c=repResumen(f),tf=textoFechas();
+  $("rep-res").innerHTML=malas?`La fecha "Desde" es mayor que "Hasta"<span>Corrige el rango de fechas.</span>`
+    :f.length?`${f.length} ${f.length===1?"producto":"productos"} en el reporte<span>${[c.vencido&&c.vencido+" para retirar ya",c.critico&&c.critico+" en 1 a 3 días",c.pronto&&c.pronto+" esta semana",c.ok&&c.ok+" más adelante",c.atendido&&c.atendido+" atendidos"].filter(Boolean).join(" · ")}${tf?"<br>"+esc(tf):""}</span>`
+    :`No hay productos con estos filtros<span>Cambia el display, el PDV, las fechas, el estado o la categoría.</span>`;
   $("rep-pdf").disabled=$("rep-comp").disabled=!f.length;
 }
-["alc","est","cat"].forEach(k=>$("rep-"+k).onclick=e=>{const b=e.target.closest("button");if(!b)return;REP[k]=b.dataset.v;pintarRep()});
+["est","cat","campo"].forEach(k=>$("rep-"+k).onclick=e=>{const b=e.target.closest("button");if(!b)return;REP[k]=b.dataset.v;pintarRep()});
+$("rep-disp").onchange=e=>{REP.disp=e.target.value;REP.pdv=TODOS;pintarRep()};
+$("rep-pdv").onchange=e=>{REP.pdv=e.target.value;pintarRep()};
+$("rep-desde").onchange=e=>{REP.desde=e.target.value;pintarRep()};
+$("rep-hasta").onchange=e=>{REP.hasta=e.target.value;pintarRep()};
+$("rep-rapido").onclick=e=>{const c=e.target.closest(".chip");if(!c)return;[REP.desde,REP.hasta]=rango(c.dataset.r);pintarRep()};
 $("rep-x").onclick=()=>cerrar("p-rep");
 function cargarScript(src,listo){return new Promise((ok,mal)=>{if(listo())return ok();const s=document.createElement("script");s.src=src;s.onload=()=>ok();s.onerror=()=>mal(new Error("No se pudo cargar el generador de PDF. Revisa tu internet."));document.head.appendChild(s)})}
 async function cargarPDF(){
@@ -1070,9 +1120,12 @@ function fotoJpg(src){if(!src)return Promise.resolve(null);if(FOTO_JPG.has(src))
   FOTO_JPG.set(src,p);return p}
 const COLOR={vencido:[[196,43,43],[251,229,227]],critico:[[169,99,0],[253,240,217]],pronto:[[125,108,0],[248,243,204]],ok:[[31,122,69],[225,243,232]],atendido:[[91,101,120],[233,237,245]]};
 function fCompleta(f){if(!f)return"";const[y,m,d]=f.split("-");return d+"/"+m+"/"+y}
-function nombreRep(){const d=new Date(),z=n=>String(n).padStart(2,"0");const lugar=(REP.alc==="pdv"?S.ctx.pdv:REP.alc==="admin"?"todos_los_displays":"todos_mis_pdv").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Za-z0-9#]+/g,"_");
+function nombreRep(){const d=new Date(),z=n=>String(n).padStart(2,"0");
+  const lugar=[REP.disp===TODOS?"todos_los_displays":REP.disp,REP.pdv===TODOS?(REP.disp===TODOS?"":"todos_pdv"):REP.pdv,REP.desde||REP.hasta?(REP.desde||"inicio")+"_a_"+(REP.hasta||"fin"):""].filter(Boolean).join("_")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Za-z0-9#-]+/g,"_");
   return `reporte_fechas_proximas_${lugar}_${d.getFullYear()}${z(d.getMonth()+1)}${z(d.getDate())}.pdf`}
 async function hacerReporte(){
+  if(REP.desde&&REP.hasta&&REP.desde>REP.hasta){toast("Corrige el rango de fechas");return null}
   const filas=repFilas();if(!filas.length){toast("No hay productos con esos filtros");return null}
   const jsPDF=await cargarPDF();
   const fotos=await Promise.all(filas.map(r=>fotoJpg(fotoDe(r))));
@@ -1080,24 +1133,24 @@ async function hacerReporte(){
   // encabezado
   doc.setFont("helvetica","bold");doc.setFontSize(18);doc.setTextColor(24,32,46);doc.text("Reporte de fechas próximas",14,18);
   doc.setFont("helvetica","normal");doc.setFontSize(10);doc.setTextColor(91,101,120);
-  const filtro=[REP.alc==="admin"?"Todos los displays":`Display: ${S.ctx.display}`,REP.alc==="pdv"?`PDV: ${S.ctx.pdv}`:REP.alc==="admin"?"Todos los PDV":"Todos mis PDV",{pend:"Pendientes",aten:"Atendidos",todos:"Pendientes y atendidos"}[REP.est],REP.cat==="todas"?"CCN y CDN":REP.cat].join("  ·  ");
-  doc.text(filtro,14,24.5);
+  const filtro=[REP.disp===TODOS?"Todos los displays":`Display: ${REP.disp}`,REP.pdv===TODOS?etiquetaPdv():`PDV: ${REP.pdv}`,{pend:"Pendientes",aten:"Atendidos",todos:"Pendientes y atendidos"}[REP.est],REP.cat==="todas"?"CCN y CDN":REP.cat,textoFechas()].filter(Boolean).join("  ·  ");
+  const lineasF=doc.splitTextToSize(filtro,W-28-52);doc.text(lineasF,14,24.5);const off=(lineasF.length-1)*4.6;
   const ahora=new Date();doc.text(`Generado: ${fCompleta(iso(ahora))} ${String(ahora.getHours()).padStart(2,"0")}:${String(ahora.getMinutes()).padStart(2,"0")}`,W-14,18,{align:"right"});
   // resumen en colores
   const c=repResumen(filas);const cajas=[["vencido","Retirar ya"],["critico","En 1 a 3 días"],["pronto","Esta semana"],["ok","Más adelante"],["atendido","Atendidos"]];
   const bw=(W-28-4*3)/5;cajas.forEach(([k,t],i)=>{const x=14+i*(bw+3),[fg,bg]=COLOR[k];
-    doc.setFillColor(...bg);doc.roundedRect(x,30,bw,17,2,2,"F");doc.setTextColor(...fg);
-    doc.setFont("helvetica","bold");doc.setFontSize(16);doc.text(String(c[k]),x+bw/2,39,{align:"center"});
-    doc.setFont("helvetica","normal");doc.setFontSize(8);doc.text(t,x+bw/2,44,{align:"center"})});
+    doc.setFillColor(...bg);doc.roundedRect(x,30+off,bw,17,2,2,"F");doc.setTextColor(...fg);
+    doc.setFont("helvetica","bold");doc.setFontSize(16);doc.text(String(c[k]),x+bw/2,39+off,{align:"center"});
+    doc.setFont("helvetica","normal");doc.setFontSize(8);doc.text(t,x+bw/2,44+off,{align:"center"})});
   // tabla
   const cuerpo=[];let grupoActual=null;
   filas.forEach((r,i)=>{
-    const grupo=REP.alc==="admin"?`${r.display} · ${r.pdv}`:r.pdv;
-    if(REP.alc!=="pdv"&&grupo!==grupoActual){grupoActual=grupo;cuerpo.push([{content:grupo,colSpan:9,styles:{fillColor:[227,233,250],textColor:[35,70,168],fontStyle:"bold",fontSize:9.5}}])}
+    const grupo=REP.disp===TODOS?`${r.display} · ${r.pdv}`:r.pdv;
+    if(REP.pdv===TODOS&&grupo!==grupoActual){grupoActual=grupo;cuerpo.push([{content:grupo,colSpan:9,styles:{fillColor:[227,233,250],textColor:[35,70,168],fontStyle:"bold",fontSize:9.5}}])}
     const at=r.estado==="atendido",n=diasRet(r),k=at?"atendido":nivel(n);
     cuerpo.push([{content:"",foto:fotos[i],styles:{minCellHeight:13}},r.presentacion||r.producto,codigoDe(r),r.categoria,String(r.cantidad),r.lote||"",fCompleta(r.fecha),fCompleta(fechaRetiro(r)),
       {content:at?"Atendido":txtRet(n),styles:{textColor:COLOR[k][0],fontStyle:"bold"}}])});
-  doc.autoTable({startY:52,margin:{left:14,right:14,bottom:16},
+  doc.autoTable({startY:52+off,margin:{left:14,right:14,bottom:16},
     head:[["Foto","Producto","Código","Cat.","Cant.","Lote","Vence","Retirar el","Estado"]],body:cuerpo,
     styles:{font:"helvetica",fontSize:8,cellPadding:1.6,valign:"middle",textColor:[24,32,46],lineColor:[225,229,238],lineWidth:.2},
     headStyles:{fillColor:[24,32,46],textColor:255,fontStyle:"bold",fontSize:8},
