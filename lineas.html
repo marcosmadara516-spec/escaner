@@ -92,7 +92,7 @@
     <div id="listaFalta"></div>
   </div>
 
-  <div class="version">Líneas bajas y faltantes · Versión 6</div>
+  <div class="version">Líneas bajas y faltantes · Versión 7</div>
 </main>
 
 <div class="pie">
@@ -205,8 +205,8 @@ function pintar() {
 function textoReporte() {
   const bajas = lista.filter(x => x.t === 'baja'), faltas = lista.filter(x => x.t === 'falta');
   const pdv = $('pdv').value.trim();
-  let s = '*REPORTE DE LÍNEAS BAJAS Y FALTANTES*\n';
-  if (pdv) s += `PDV: ${pdv}\n`;
+  let s = pdv ? `*PDV: ${pdv}*\n` : '';
+  s += '*REPORTE DE LÍNEAS BAJAS Y FALTANTES*\n';
   if (DISPLAY) s += `Display: ${DISPLAY}\n`;
   s += `Fecha: ${hoy()}\n`;
   s += `\n*LÍNEAS BAJAS (${bajas.length})*\n` + (bajas.length ? bajas.map(x => '• ' + x.nombre).join('\n') : '• Ninguna') + '\n';
@@ -233,9 +233,10 @@ function pdf() {
   const doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'letter' });
   const pdv = $('pdv').value.trim();
   let y = 20;
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.text('Reporte de líneas bajas y faltantes', 15, y); y += 8;
+  if (pdv) { doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.setTextColor(20); doc.text(`PDV: ${pdv}`, 15, y); y += 8; }
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(60); doc.text('Reporte de líneas bajas y faltantes', 15, y); y += 7;
   doc.setFont('helvetica', 'normal'); doc.setFontSize(11); doc.setTextColor(90);
-  doc.text([pdv && `PDV: ${pdv}`, DISPLAY && `Display: ${DISPLAY}`, `Fecha: ${hoy()}`].filter(Boolean).join('    '), 15, y); y += 10;
+  doc.text([DISPLAY && `Display: ${DISPLAY}`, `Fecha: ${hoy()}`].filter(Boolean).join('    '), 15, y); y += 10;
   [['baja', 'LÍNEAS BAJAS', [37, 99, 235]], ['falta', 'FALTANTES', [220, 60, 60]]].forEach(([t, tit, color]) => {
     const items = lista.filter(x => x.t === t);
     if (y > 250) { doc.addPage(); y = 20; }
