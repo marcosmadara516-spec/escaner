@@ -193,7 +193,7 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
     <button class="chip" data-f="admin" aria-pressed="false" hidden>Todos los displays</button>
   </div>
   <div id="lista" class="lista"><div class="cargando">Cargando…</div></div>
-  <p class="muted" style="text-align:center;font-size:.8rem;margin:20px 0 0">Escáner en vivo · Versión 15</p>
+  <p class="muted" style="text-align:center;font-size:.8rem;margin:20px 0 0">Escáner en vivo · Versión 16</p>
 </div>
 
 <button class="fab" id="fab" type="button" aria-label="Escanear código de barras">
@@ -316,7 +316,7 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>
       <span>Cambiar display y PDV</span>
     </button>
-    <div class="m-ver">Escáner en vivo · Versión 15</div>
+    <div class="m-ver">Escáner en vivo · Versión 16</div>
   </nav>
 </div>
 
@@ -721,38 +721,246 @@ const DESC={mb:0,ult:0};
     const lector=r.body.getReader(),partes=[];
     for(;;){const {done,value}=await lector.read();if(done)break;partes.push(value);DESC.mb+=value.length/1048576;DESC.ult=Date.now()}
     return new Response(new Blob(partes),{status:r.status,headers:r.headers})}})();
+/* ---------- recorte v16: foto original, bordes limpios y segunda pasada de cerca (como Photoroom) ---------- */
+// "small" descarga ~55 MB la primera vez. "medium" recorta mejor pero descarga cerca del doble.
+const MODELO_RECORTE="small";
+const RECORTE_RESPALDO="https://unpkg.com/@imgly/background-removal-data@1.4.5/dist/";
+let RECORTE_PP=null; // si la ruta principal falla una vez, se usa el respaldo en adelante
+// Funciones puras sobre arreglos de píxeles: sirven igual en el navegador y en pruebas con Node.
+//
+//   alfa: Uint8ClampedArray de w*h (0 = fondo, 255 = producto)
+//   rgba: Uint8ClampedArray de w*h*4 (como ImageData.data)
+
+/** Caja del producto: la pieza conectada más grande con alfa >= umbral.
+ *  Devuelve {x0,y0,x1,y1} (inclusive) o null si no hay producto. */
+function cajaProducto(alfa, w, h, umbral = 128) {
+  const piezas = piezasPrincipales(alfa, w, h, umbral);
+  if (!piezas) return null;
+  let x0 = w, y0 = h, x1 = -1, y1 = -1;
+  for (let i = 0; i < w * h; i++) {
+    if (!piezas.mantener[i]) continue;
+    const x = i % w, y = (i / w) | 0;
+    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+  }
+  return x1 < 0 ? null : { x0, y0, x1, y1 };
+}
+
+/** Etiqueta piezas conectadas con alfa >= umbral y conserva la mayor y las que
+ *  midan al menos el 25 % de ella (tapas, six-packs, asas separadas). */
+function piezasPrincipales(alfa, w, h, umbral) {
+  const N = w * h, lab = new Int32Array(N), cola = new Int32Array(N), tam = [0];
+  let n = 0;
+  for (let i = 0; i < N; i++) {
+    if (lab[i] || alfa[i] < umbral) continue;
+    n++; let qh = 0, qt = 0, cnt = 0; cola[qt++] = i; lab[i] = n;
+    while (qh < qt) {
+      const p = cola[qh++], x = p % w; cnt++;
+      const vec = [x > 0 ? p - 1 : -1, x < w - 1 ? p + 1 : -1, p - w, p + w];
+      for (const v of vec) if (v >= 0 && v < N && !lab[v] && alfa[v] >= umbral) { lab[v] = n; cola[qt++] = v; }
+    }
+    tam.push(cnt);
+  }
+  if (!n) return null;
+  const mayor = Math.max(...tam.slice(1));
+  if (mayor < N * 0.01) return null; // menos del 1 % de la foto: no es un producto
+  const mantener = new Uint8Array(N);
+  for (let i = 0; i < N; i++) if (lab[i] && tam[lab[i]] >= mayor * 0.25) mantener[i] = 1;
+  return { mantener };
+}
+
+/** Limpia y afina la máscara del modelo:
+ *  1. quita manchas sueltas (solo quedan las piezas principales y su borde suave),
+ *  2. suaviza 3×3 y aplica una curva suave: borde nítido pero con antialias,
+ *  3. "aprieta" el borde ~0.5 px para no arrastrar el halo del fondo. */
+function refinarMascara(alfa, w, h) {
+  const N = w * h;
+  const piezas = piezasPrincipales(alfa, w, h, 128);
+  if (!piezas) return null;
+
+  // Núcleo + 2 px alrededor: ahí se conserva el borde semitransparente del modelo.
+  let zona = piezas.mantener;
+  for (let r = 0; r < 2; r++) {
+    const z2 = new Uint8Array(zona);
+    for (let i = 0; i < N; i++) {
+      if (zona[i]) continue;
+      const x = i % w;
+      if ((x > 0 && zona[i - 1]) || (x < w - 1 && zona[i + 1]) || (i >= w && zona[i - w]) || (i + w < N && zona[i + w])) z2[i] = 1;
+    }
+    zona = z2;
+  }
+  const a = new Float32Array(N);
+  for (let i = 0; i < N; i++) a[i] = zona[i] ? alfa[i] / 255 : 0;
+
+  // Suavizado 3×3 (caja) para quitar escalones del modelo cuantizado.
+  const b = new Float32Array(N);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let s = 0, k = 0;
+      for (let dy = -1; dy <= 1; dy++) {
+        const yy = y + dy; if (yy < 0 || yy >= h) continue;
+        for (let dx = -1; dx <= 1; dx++) {
+          const xx = x + dx; if (xx < 0 || xx >= w) continue;
+          s += a[yy * w + xx]; k++;
+        }
+      }
+      b[y * w + x] = s / k;
+    }
+  }
+
+  // Curva suave entre 0.22 y 0.62: el borde queda definido (sin el umbral duro de antes)
+  // y desplazado hacia adentro ~0.5 px, lo que elimina la orilla del fondo.
+  const out = new Uint8ClampedArray(N);
+  const lo = 0.22, hi = 0.62;
+  for (let i = 0; i < N; i++) {
+    let t = (b[i] - lo) / (hi - lo);
+    t = t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
+    out[i] = Math.round(t * 255);
+  }
+  return out;
+}
+
+/** Quita el color del fondo que queda en los píxeles del borde (el "halo"):
+ *  cada píxel semitransparente toma el color de los píxeles opacos más cercanos
+ *  del propio producto. Modifica `rgba` en su lugar. */
+function descontaminar(rgba, w, h, radio = 4) {
+  const N = w * h, OPACO = 242;
+  const conocido = new Uint8Array(N);
+  const r = new Float32Array(N), g = new Float32Array(N), bl = new Float32Array(N);
+  for (let i = 0; i < N; i++) {
+    if (rgba[i * 4 + 3] >= OPACO) {
+      conocido[i] = 1; r[i] = rgba[i * 4]; g[i] = rgba[i * 4 + 1]; bl[i] = rgba[i * 4 + 2];
+    }
+  }
+  // Expande los colores "seguros" del producto hacia el borde, anillo por anillo.
+  for (let paso = 0; paso < radio; paso++) {
+    const nuevos = [];
+    for (let i = 0; i < N; i++) {
+      if (conocido[i] || rgba[i * 4 + 3] === 0) continue;
+      const x = i % w;
+      let sr = 0, sg = 0, sb = 0, k = 0;
+      const vec = [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, i - w, i + w,
+        x > 0 ? i - w - 1 : -1, x < w - 1 ? i - w + 1 : -1, x > 0 ? i + w - 1 : -1, x < w - 1 ? i + w + 1 : -1];
+      for (const v of vec) if (v >= 0 && v < N && conocido[v]) { sr += r[v]; sg += g[v]; sb += bl[v]; k++; }
+      if (k) nuevos.push(i, sr / k, sg / k, sb / k);
+    }
+    if (!nuevos.length) break;
+    for (let j = 0; j < nuevos.length; j += 4) {
+      const i = nuevos[j]; conocido[i] = 1; r[i] = nuevos[j + 1]; g[i] = nuevos[j + 2]; bl[i] = nuevos[j + 3];
+    }
+  }
+  // Mezcla: cuanto más transparente el píxel, más color del producto y menos del fondo.
+  for (let i = 0; i < N; i++) {
+    const a = rgba[i * 4 + 3];
+    if (a === 0 || a >= OPACO || !conocido[i]) continue;
+    const t = a / 255, m = t * t; // m: cuánto del color original se conserva
+    rgba[i * 4] = Math.round(r[i] * (1 - m) + rgba[i * 4] * m);
+    rgba[i * 4 + 1] = Math.round(g[i] * (1 - m) + rgba[i * 4 + 1] * m);
+    rgba[i * 4 + 2] = Math.round(bl[i] * (1 - m) + rgba[i * 4 + 2] * m);
+  }
+  return rgba;
+}
+
+/** Decide si vale la pena una segunda pasada "de cerca" (como Photoroom):
+ *  cuando el producto ocupa poco de la foto, el modelo lo ve con pocos píxeles. */
+function necesitaZoom(caja, w, h) {
+  const lado = Math.max(caja.x1 - caja.x0 + 1, caja.y1 - caja.y0 + 1);
+  return lado / Math.max(w, h) < 0.6;
+}
+
+/** Región a recortar alrededor de la caja, con margen, en las coordenadas dadas. */
+function regionConMargen(caja, w, h, margen = 0.12) {
+  const bw = caja.x1 - caja.x0 + 1, bh = caja.y1 - caja.y0 + 1;
+  const m = Math.round(Math.max(bw, bh) * margen) + 2;
+  const x0 = Math.max(0, caja.x0 - m), y0 = Math.max(0, caja.y0 - m);
+  const x1 = Math.min(w - 1, caja.x1 + m), y1 = Math.min(h - 1, caja.y1 + m);
+  return { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+}
+
+/** Remuestrea una máscara a otro tamaño (vecino más cercano; basta para comparar). */
+function remuestrear(a, w, h, nw, nh) {
+  const o = new Uint8ClampedArray(nw * nh);
+  for (let y = 0; y < nh; y++) {
+    const sy = Math.min(h - 1, Math.floor((y + 0.5) * h / nh));
+    for (let x = 0; x < nw; x++) o[y * nw + x] = a[sy * w + Math.min(w - 1, Math.floor((x + 0.5) * w / nw))];
+  }
+  return o;
+}
+
+/** Coincidencia entre dos máscaras del mismo tamaño (intersección / unión, de 0 a 1).
+ *  Se usa para no aceptar una segunda pasada que cambió de opinión sobre qué es el producto. */
+function coincidencia(a, b, umbral = 128) {
+  let inter = 0, union = 0;
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i] >= umbral, y = b[i] >= umbral;
+    if (x && y) inter++;
+    if (x || y) union++;
+  }
+  return union ? inter / union : 0;
+}
+
+// Alfa (máscara) de la imagen PNG que devuelve el recortador.
+function alfaDe(cut){const w=cut.naturalWidth,h=cut.naturalHeight;const c=document.createElement("canvas");c.width=w;c.height=h;
+  const g=c.getContext("2d",{willReadFrequently:true});g.drawImage(cut,0,0);const d=g.getImageData(0,0,w,h).data;
+  const a=new Uint8ClampedArray(w*h);for(let i=0;i<a.length;i++)a[i]=d[i*4+3];return{a,w,h}}
+// Reduce por pasos (mitad cada vez): mucho más nítido que una sola reducción grande.
+function reducir(img,sx,sy,sw,sh,dw,dh){
+  let src=img,x=sx,y=sy,w=sw,h=sh;
+  while(w/2>dw&&h/2>dh){const c=document.createElement("canvas");c.width=Math.max(1,Math.round(w/2));c.height=Math.max(1,Math.round(h/2));
+    const g=c.getContext("2d");g.imageSmoothingEnabled=true;g.imageSmoothingQuality="high";g.drawImage(src,x,y,w,h,0,0,c.width,c.height);
+    src=c;x=0;y=0;w=c.width;h=c.height}
+  const o=document.createElement("canvas");o.width=dw;o.height=dh;const og=o.getContext("2d",{willReadFrequently:true});
+  og.imageSmoothingEnabled=true;og.imageSmoothingQuality="high";og.drawImage(src,x,y,w,h,0,0,dw,dh);return o}
+function aBlobRegion(img,reg,max){const s=Math.min(1,max/Math.max(reg.w,reg.h));
+  const c=reducir(img,reg.x,reg.y,reg.w,reg.h,Math.max(1,Math.round(reg.w*s)),Math.max(1,Math.round(reg.h*s)));
+  return new Promise(ok=>c.toBlob(ok,"image/jpeg",.92))}
+function recortarAlfa(m,r){const a=new Uint8ClampedArray(r.w*r.h);
+  for(let y=0;y<r.h;y++)a.set(m.a.subarray((r.y+y)*m.w+r.x,(r.y+y)*m.w+r.x+r.w),y*r.w);return{a,w:r.w,h:r.h}}
 async function quitarFondoIA(img,avance){
-  avance({fase:"cargar"});const m=await cargarRecortador();const ent=await aBlob(img,800);
-  let fase=IA_LISTA?"recortar":"descargar",t0=Date.now();DESC.mb=0;DESC.ult=Date.now();
-  const opc=(pp)=>{const o={model:"small",output:{format:"image/png"},progress:(k)=>{if(k==="compute:inference"&&fase!=="recortar"){fase="recortar";t0=Date.now()}}};if(pp)o.publicPath=pp;return o};
+  avance({fase:"cargar"});const m=await cargarRecortador();
+  let fase=IA_LISTA?"recortar":"descargar",t0=Date.now(),pasada=1;DESC.mb=0;DESC.ult=Date.now();
+  const opc=()=>{const o={model:MODELO_RECORTE,output:{format:"image/png"},progress:(k)=>{if(k==="compute:inference"&&fase!=="recortar"){fase="recortar";t0=Date.now()}}};if(RECORTE_PP)o.publicPath=RECORTE_PP;return o};
+  const correr=async(blob)=>{try{return await m.removeBackground(blob,opc())}
+    catch(e){if(RECORTE_PP)throw e;RECORTE_PP=RECORTE_RESPALDO;fase="descargar";DESC.ult=Date.now();return await m.removeBackground(blob,opc())}};
   const vigia=new Promise((_,mal)=>{const iv=setInterval(()=>{
       if(fase==="listo"){clearInterval(iv);return}
-      const seg=Math.round((Date.now()-t0)/1000);avance({fase,mb:DESC.mb,seg});
+      const seg=Math.round((Date.now()-t0)/1000);avance({fase,mb:DESC.mb,seg,pasada});
       if(fase==="descargar"&&Date.now()-DESC.ult>60000){clearInterval(iv);mal(new Error("La descarga del recortador se detuvo."))}
       if(fase==="recortar"&&seg>120){clearInterval(iv);mal(new Error("El teléfono tardó demasiado en recortar."))}},500)});
-  const trabajo=(async()=>{try{return await m.removeBackground(ent,opc())}catch(e){fase="descargar";DESC.ult=Date.now();return await m.removeBackground(ent,opc("https://unpkg.com/@imgly/background-removal-data@1.4.5/dist/"))}})();
-  try{const png=await Promise.race([trabajo,vigia]);fase="listo";IA_LISTA=true;const cut=await cargarImagen(png);return componer(cut)}
+  const W=img.naturalWidth,H=img.naturalHeight;
+  const trabajo=(async()=>{
+    // Pasada 1: dónde está el producto (el modelo trabaja a 1024 px).
+    const p1=alfaDe(await cargarImagen(await correr(await aBlob(img,1024))));
+    const c1=cajaProducto(p1.a,p1.w,p1.h);if(!c1)return null;
+    const zoom=necesitaZoom(c1,p1.w,p1.h);
+    const r1=regionConMargen(c1,p1.w,p1.h,zoom?.2:.12),s1=W/p1.w;
+    const reg={x:Math.floor(r1.x*s1),y:Math.floor(r1.y*s1)};reg.w=Math.min(W-reg.x,Math.ceil(r1.w*s1));reg.h=Math.min(H-reg.y,Math.ceil(r1.h*s1));
+    let mk=recortarAlfa(p1,r1);
+    // Pasada 2 (de cerca): si el producto ocupa poco de la foto se recorta otra vez solo esa zona,
+    // pero solo se usa si está de acuerdo con la primera (a veces, de cerca, el modelo quita partes del producto).
+    if(zoom){pasada=2;t0=Date.now();
+      const mk2=alfaDe(await cargarImagen(await correr(await aBlobRegion(img,reg,1024))));
+      if(coincidencia(mk.a,remuestrear(mk2.a,mk2.w,mk2.h,mk.w,mk.h))>=.9)mk=mk2}
+    const ref=refinarMascara(mk.a,mk.w,mk.h);if(!ref)return null;
+    return componerPro(img,reg,ref,mk.w,mk.h)})();
+  try{const r=await Promise.race([trabajo,vigia]);fase="listo";IA_LISTA=true;return r}
   catch(e){fase="listo";throw e}}
-// Limpia la máscara (bordes nítidos, sin manchas sueltas) y centra el producto sobre blanco con sombra suave.
-function componer(cut){
-  const w=cut.naturalWidth,h=cut.naturalHeight,N=w*h;const c=document.createElement("canvas");c.width=w;c.height=h;
-  const g=c.getContext("2d",{willReadFrequently:true});g.drawImage(cut,0,0);const id=g.getImageData(0,0,w,h),d=id.data;
-  const lab=new Int32Array(N),q=new Int32Array(N);let mejor=0,mejorN=0,n=0;
-  for(let i=0;i<N;i++){if(lab[i]||d[i*4+3]<60)continue;n++;let cnt=0,qh=0,qt=0;q[qt++]=i;lab[i]=n;
-    while(qh<qt){const p=q[qh++],x=p%w;cnt++;for(const v of [x>0?p-1:-1,x<w-1?p+1:-1,p-w,p+w]){if(v>=0&&v<N&&!lab[v]&&d[v*4+3]>=60){lab[v]=n;q[qt++]=v}}}
-    if(cnt>mejorN){mejorN=cnt;mejor=n}}
-  if(!mejor||mejorN/N<.02)return null;
-  let x0=w,y0=h,x1=0,y1=0;
-  for(let i=0;i<N;i++){const j=i*4+3;let a=d[j];
-    if(lab[i]&&lab[i]!==mejor)a=0;else if(!lab[i]&&a>0){const x=i%w;const vec=[x>0?i-1:-1,x<w-1?i+1:-1,i-w,i+w];if(!vec.some(v=>v>=0&&v<N&&lab[v]===mejor))a=0}
-    a=Math.max(0,Math.min(255,Math.round((a-40)*255/170)));d[j]=a;
-    if(a>128){const x=i%w,y=(i/w)|0;if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}}
-  g.putImageData(id,0,0);
-  const cw=x1-x0+1,ch=y1-y0+1,OUT=640,caja=OUT*.84,k=Math.min(caja/cw,caja/ch,2.5);
+// Centra el producto sobre blanco con sombra suave. Los píxeles salen de la foto ORIGINAL
+// (no de la versión reducida que vio el modelo): por eso queda nítido aunque el producto sea chico.
+function componerPro(img,reg,ref,aw,ah){
+  const cb=cajaProducto(ref,aw,ah);if(!cb)return null;
+  const sx=reg.w/aw,sy=reg.h/ah;
+  const bx=reg.x+cb.x0*sx,by=reg.y+cb.y0*sy,bw=(cb.x1-cb.x0+1)*sx,bh=(cb.y1-cb.y0+1)*sy;
+  const OUT=640,caja=OUT*.84,k=Math.min(caja/bw,caja/bh,1.6);
+  const dw=Math.max(1,Math.round(bw*k)),dh=Math.max(1,Math.round(bh*k)),dx=Math.round((OUT-dw)/2),dy=Math.round((OUT-dh)/2);
+  const p=reducir(img,bx,by,bw,bh,dw,dh);const pg=p.getContext("2d",{willReadFrequently:true});
+  const mc=document.createElement("canvas");mc.width=aw;mc.height=ah;const mg=mc.getContext("2d");const md=mg.createImageData(aw,ah);
+  for(let i=0;i<aw*ah;i++)md.data[i*4+3]=ref[i];mg.putImageData(md,0,0);
+  pg.globalCompositeOperation="destination-in";pg.imageSmoothingEnabled=true;pg.imageSmoothingQuality="high";
+  pg.drawImage(mc,cb.x0,cb.y0,cb.x1-cb.x0+1,cb.y1-cb.y0+1,0,0,dw,dh);pg.globalCompositeOperation="source-over";
+  const id=pg.getImageData(0,0,dw,dh);descontaminar(id.data,dw,dh,4);pg.putImageData(id,0,0);
   const o=document.createElement("canvas");o.width=o.height=OUT;const og=o.getContext("2d");og.fillStyle="#fff";og.fillRect(0,0,OUT,OUT);
-  og.imageSmoothingEnabled=true;og.imageSmoothingQuality="high";const dx=(OUT-cw*k)/2,dy=(OUT-ch*k)/2;
-  og.save();og.shadowColor="rgba(0,0,0,.16)";og.shadowBlur=22;og.shadowOffsetY=10;og.drawImage(c,x0,y0,cw,ch,dx,dy,cw*k,ch*k);og.restore();
-  og.drawImage(c,x0,y0,cw,ch,dx,dy,cw*k,ch*k);
+  og.save();og.shadowColor="rgba(0,0,0,.14)";og.shadowBlur=26;og.shadowOffsetY=12;og.drawImage(p,dx,dy);og.restore();
+  og.drawImage(p,dx,dy);
   return comprimir(o)}
 const FE={orig:"",sinFondo:null,usarSin:true,turno:0};
 function abrirEditorFoto(img,desdeCamara){
@@ -763,7 +971,7 @@ function abrirEditorFoto(img,desdeCamara){
   const avance=p=>{if(t!==FE.turno)return;$("fe-est").textContent=
     p.fase==="cargar"?"Abriendo el recortador…":
     p.fase==="descargar"?(p.mb<.5?"Preparando el recortador… "+p.seg+" s":"Descargando el recortador (solo la primera vez): "+Math.min(55,Math.round(p.mb))+" de 55 MB. Usa WiFi."):
-    "Recortando el producto… "+p.seg+" s (puede tardar hasta 1 minuto)"};
+    (p.pasada===2?"Afinando los bordes de cerca… ":"Recortando el producto… ")+p.seg+" s (puede tardar hasta 1 minuto)"};
   const fin=(r,ia)=>{if(t!==FE.turno)return;$("fe-img").classList.remove("fe-proc");FE.sinFondo=r;$("fe-sw").disabled=!r;
     if(r){$("fe-est").textContent=ia?"Listo. Si no se ve bien, apaga “Quitar fondo”.":(FE.motivo?FE.motivo+" ":"")+"Se usó el recorte básico. Si no se ve bien, apaga “Quitar fondo”."}
     else{FE.usarSin=false;$("fe-sw").checked=false;$("fe-est").textContent="No pude separar el producto del fondo. Usa la foto así o toma otra con el producto más cerca."}
