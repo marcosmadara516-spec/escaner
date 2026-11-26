@@ -721,16 +721,11 @@ const DESC={mb:0,ult:0};
     const lector=r.body.getReader(),partes=[];
     for(;;){const {done,value}=await lector.read();if(done)break;partes.push(value);DESC.mb+=value.length/1048576;DESC.ult=Date.now()}
     return new Response(new Blob(partes),{status:r.status,headers:r.headers})}})();
-/* ---------- recorte v16: foto original, bordes limpios y segunda pasada de cerca (como Photoroom) ---------- */
-// "small" descarga ~55 MB la primera vez. "medium" recorta mejor pero descarga cerca del doble.
+/* ---------- recorte v16: foto original y bordes limpios (como Photoroom), en una sola pasada ---------- */
+// "small" descarga ~55 MB la primera vez. "medium" recorta mejor pero descarga cerca del doble y es más lento.
 const MODELO_RECORTE="small";
 const RECORTE_RESPALDO="https://unpkg.com/@imgly/background-removal-data@1.4.5/dist/";
 let RECORTE_PP=null; // si la ruta principal falla una vez, se usa el respaldo en adelante
-// Funciones puras sobre arreglos de píxeles: sirven igual en el navegador y en pruebas con Node.
-//
-//   alfa: Uint8ClampedArray de w*h (0 = fondo, 255 = producto)
-//   rgba: Uint8ClampedArray de w*h*4 (como ImageData.data)
-
 /** Caja del producto: la pieza conectada más grande con alfa >= umbral.
  *  Devuelve {x0,y0,x1,y1} (inclusive) o null si no hay producto. */
 function cajaProducto(alfa, w, h, umbral = 128) {
@@ -860,13 +855,6 @@ function descontaminar(rgba, w, h, radio = 4) {
   return rgba;
 }
 
-/** Decide si vale la pena una segunda pasada "de cerca" (como Photoroom):
- *  cuando el producto ocupa poco de la foto, el modelo lo ve con pocos píxeles. */
-function necesitaZoom(caja, w, h) {
-  const lado = Math.max(caja.x1 - caja.x0 + 1, caja.y1 - caja.y0 + 1);
-  return lado / Math.max(w, h) < 0.6;
-}
-
 /** Región a recortar alrededor de la caja, con margen, en las coordenadas dadas. */
 function regionConMargen(caja, w, h, margen = 0.12) {
   const bw = caja.x1 - caja.x0 + 1, bh = caja.y1 - caja.y0 + 1;
@@ -875,29 +863,6 @@ function regionConMargen(caja, w, h, margen = 0.12) {
   const x1 = Math.min(w - 1, caja.x1 + m), y1 = Math.min(h - 1, caja.y1 + m);
   return { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
 }
-
-/** Remuestrea una máscara a otro tamaño (vecino más cercano; basta para comparar). */
-function remuestrear(a, w, h, nw, nh) {
-  const o = new Uint8ClampedArray(nw * nh);
-  for (let y = 0; y < nh; y++) {
-    const sy = Math.min(h - 1, Math.floor((y + 0.5) * h / nh));
-    for (let x = 0; x < nw; x++) o[y * nw + x] = a[sy * w + Math.min(w - 1, Math.floor((x + 0.5) * w / nw))];
-  }
-  return o;
-}
-
-/** Coincidencia entre dos máscaras del mismo tamaño (intersección / unión, de 0 a 1).
- *  Se usa para no aceptar una segunda pasada que cambió de opinión sobre qué es el producto. */
-function coincidencia(a, b, umbral = 128) {
-  let inter = 0, union = 0;
-  for (let i = 0; i < a.length; i++) {
-    const x = a[i] >= umbral, y = b[i] >= umbral;
-    if (x && y) inter++;
-    if (x || y) union++;
-  }
-  return union ? inter / union : 0;
-}
-
 // Alfa (máscara) de la imagen PNG que devuelve el recortador.
 function alfaDe(cut){const w=cut.naturalWidth,h=cut.naturalHeight;const c=document.createElement("canvas");c.width=w;c.height=h;
   const g=c.getContext("2d",{willReadFrequently:true});g.drawImage(cut,0,0);const d=g.getImageData(0,0,w,h).data;
@@ -910,36 +875,27 @@ function reducir(img,sx,sy,sw,sh,dw,dh){
     src=c;x=0;y=0;w=c.width;h=c.height}
   const o=document.createElement("canvas");o.width=dw;o.height=dh;const og=o.getContext("2d",{willReadFrequently:true});
   og.imageSmoothingEnabled=true;og.imageSmoothingQuality="high";og.drawImage(src,x,y,w,h,0,0,dw,dh);return o}
-function aBlobRegion(img,reg,max){const s=Math.min(1,max/Math.max(reg.w,reg.h));
-  const c=reducir(img,reg.x,reg.y,reg.w,reg.h,Math.max(1,Math.round(reg.w*s)),Math.max(1,Math.round(reg.h*s)));
-  return new Promise(ok=>c.toBlob(ok,"image/jpeg",.92))}
 function recortarAlfa(m,r){const a=new Uint8ClampedArray(r.w*r.h);
   for(let y=0;y<r.h;y++)a.set(m.a.subarray((r.y+y)*m.w+r.x,(r.y+y)*m.w+r.x+r.w),y*r.w);return{a,w:r.w,h:r.h}}
 async function quitarFondoIA(img,avance){
   avance({fase:"cargar"});const m=await cargarRecortador();
-  let fase=IA_LISTA?"recortar":"descargar",t0=Date.now(),pasada=1;DESC.mb=0;DESC.ult=Date.now();
+  let fase=IA_LISTA?"recortar":"descargar",t0=Date.now();DESC.mb=0;DESC.ult=Date.now();
   const opc=()=>{const o={model:MODELO_RECORTE,output:{format:"image/png"},progress:(k)=>{if(k==="compute:inference"&&fase!=="recortar"){fase="recortar";t0=Date.now()}}};if(RECORTE_PP)o.publicPath=RECORTE_PP;return o};
   const correr=async(blob)=>{try{return await m.removeBackground(blob,opc())}
     catch(e){if(RECORTE_PP)throw e;RECORTE_PP=RECORTE_RESPALDO;fase="descargar";DESC.ult=Date.now();return await m.removeBackground(blob,opc())}};
   const vigia=new Promise((_,mal)=>{const iv=setInterval(()=>{
       if(fase==="listo"){clearInterval(iv);return}
-      const seg=Math.round((Date.now()-t0)/1000);avance({fase,mb:DESC.mb,seg,pasada});
+      const seg=Math.round((Date.now()-t0)/1000);avance({fase,mb:DESC.mb,seg});
       if(fase==="descargar"&&Date.now()-DESC.ult>60000){clearInterval(iv);mal(new Error("La descarga del recortador se detuvo."))}
       if(fase==="recortar"&&seg>120){clearInterval(iv);mal(new Error("El teléfono tardó demasiado en recortar."))}},500)});
   const W=img.naturalWidth,H=img.naturalHeight;
   const trabajo=(async()=>{
-    // Pasada 1: dónde está el producto (el modelo trabaja a 1024 px).
+    // El modelo trabaja a 1024 px y decide qué es producto; los píxeles salen después de la foto original.
     const p1=alfaDe(await cargarImagen(await correr(await aBlob(img,1024))));
     const c1=cajaProducto(p1.a,p1.w,p1.h);if(!c1)return null;
-    const zoom=necesitaZoom(c1,p1.w,p1.h);
-    const r1=regionConMargen(c1,p1.w,p1.h,zoom?.2:.12),s1=W/p1.w;
+    const r1=regionConMargen(c1,p1.w,p1.h),s1=W/p1.w;
     const reg={x:Math.floor(r1.x*s1),y:Math.floor(r1.y*s1)};reg.w=Math.min(W-reg.x,Math.ceil(r1.w*s1));reg.h=Math.min(H-reg.y,Math.ceil(r1.h*s1));
-    let mk=recortarAlfa(p1,r1);
-    // Pasada 2 (de cerca): si el producto ocupa poco de la foto se recorta otra vez solo esa zona,
-    // pero solo se usa si está de acuerdo con la primera (a veces, de cerca, el modelo quita partes del producto).
-    if(zoom){pasada=2;t0=Date.now();
-      const mk2=alfaDe(await cargarImagen(await correr(await aBlobRegion(img,reg,1024))));
-      if(coincidencia(mk.a,remuestrear(mk2.a,mk2.w,mk2.h,mk.w,mk.h))>=.9)mk=mk2}
+    const mk=recortarAlfa(p1,r1);
     const ref=refinarMascara(mk.a,mk.w,mk.h);if(!ref)return null;
     return componerPro(img,reg,ref,mk.w,mk.h)})();
   try{const r=await Promise.race([trabajo,vigia]);fase="listo";IA_LISTA=true;return r}
@@ -971,7 +927,7 @@ function abrirEditorFoto(img,desdeCamara){
   const avance=p=>{if(t!==FE.turno)return;$("fe-est").textContent=
     p.fase==="cargar"?"Abriendo el recortador…":
     p.fase==="descargar"?(p.mb<.5?"Preparando el recortador… "+p.seg+" s":"Descargando el recortador (solo la primera vez): "+Math.min(55,Math.round(p.mb))+" de 55 MB. Usa WiFi."):
-    (p.pasada===2?"Afinando los bordes de cerca… ":"Recortando el producto… ")+p.seg+" s (puede tardar hasta 1 minuto)"};
+    "Recortando el producto… "+p.seg+" s (puede tardar hasta 1 minuto)"};
   const fin=(r,ia)=>{if(t!==FE.turno)return;$("fe-img").classList.remove("fe-proc");FE.sinFondo=r;$("fe-sw").disabled=!r;
     if(r){$("fe-est").textContent=ia?"Listo. Si no se ve bien, apaga “Quitar fondo”.":(FE.motivo?FE.motivo+" ":"")+"Se usó el recorte básico. Si no se ve bien, apaga “Quitar fondo”."}
     else{FE.usarSin=false;$("fe-sw").checked=false;$("fe-est").textContent="No pude separar el producto del fondo. Usa la foto así o toma otra con el producto más cerca."}
