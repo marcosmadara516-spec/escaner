@@ -32,6 +32,9 @@
   .camara video { width:100%; height:100%; object-fit:cover; }
   .camara .mira { position:absolute; left:10%; right:10%; top:36%; height:28%; border:3px solid #fff; border-radius:12px; box-shadow:0 0 0 9999px rgba(0,0,0,.45); }
   .camara .mira::after { content:''; position:absolute; left:6%; right:6%; top:50%; height:2px; background:#ff4d4d; box-shadow:0 0 8px #ff4d4d; }
+  .etq { display:block; font-size:13px; font-weight:700; color:var(--suave); margin:0 0 8px; text-transform:uppercase; letter-spacing:.04em; }
+  #pdv { font-size:17px; font-weight:700; }
+  #pdv.falta { border-color:var(--rojo); box-shadow:0 0 0 2px rgba(255,107,107,.35); }
   .estado { font-size:13px; color:var(--suave); margin-top:8px; min-height:18px; }
   h2 { font-size:15px; margin:4px 0 8px; display:flex; align-items:center; gap:8px; }
   h2 .punto { width:10px; height:10px; border-radius:50%; }
@@ -59,6 +62,12 @@
 
 <main>
   <div class="tarjeta">
+    <label class="etq" for="pdv">1. Nombre del PDV</label>
+    <input id="pdv" placeholder="Ej. AMPM-MASATEPE" autocomplete="off" style="text-transform:uppercase">
+  </div>
+
+  <div class="tarjeta">
+    <label class="etq">2. Agrega los artículos</label>
     <div class="tipo">
       <button data-t="baja" class="on">Línea baja</button>
       <button data-t="falta">Faltante</button>
@@ -73,9 +82,6 @@
     <div class="estado" id="estado">Cargando catálogo…</div>
   </div>
 
-  <div class="tarjeta">
-    <input id="pdv" placeholder="PDV (ej. AMPM-MASATEPE)" autocomplete="off">
-  </div>
 
   <div class="tarjeta">
     <h2><span class="punto" style="background:var(--azul)"></span><span id="tBaja">Líneas bajas (0)</span></h2>
@@ -86,7 +92,7 @@
     <div id="listaFalta"></div>
   </div>
 
-  <div class="version">Líneas bajas y faltantes · Versión 5</div>
+  <div class="version">Líneas bajas y faltantes · Versión 6</div>
 </main>
 
 <div class="pie">
@@ -207,7 +213,11 @@ function textoReporte() {
   s += `\n*FALTANTES (${faltas.length})*\n` + (faltas.length ? faltas.map(x => '• ' + x.nombre).join('\n') : '• Ninguno');
   return s;
 }
-function hayDatos() { if (!lista.length) { aviso('Agrega al menos un artículo'); return false; } return true; }
+function hayDatos() {
+  if (!$('pdv').value.trim()) { aviso('Escribe primero el nombre del PDV'); $('pdv').classList.add('falta'); $('pdv').focus(); window.scrollTo(0, 0); return false; }
+  if (!lista.length) { aviso('Agrega al menos un artículo'); return false; }
+  return true;
+}
 function enviarWhatsApp() {
   if (!hayDatos()) return;
   window.open('https://wa.me/?text=' + encodeURIComponent(textoReporte()), '_blank');
@@ -323,7 +333,8 @@ $('btnCopiar').onclick = copiar;
 $('btnPdf').onclick = pdf;
 $('btnNuevo').onclick = () => { if (lista.length && confirm('¿Empezar un reporte nuevo? Se borra la lista actual.')) { lista = []; guardarLocal(K_LISTA, lista); pintar(); } };
 $('pdv').value = params.get('pdv') || leerLocal(K_PDV, '');
-$('pdv').onchange = () => guardarLocal(K_PDV, $('pdv').value.trim());
+$('pdv').onchange = () => { $('pdv').value = $('pdv').value.replace(/\s+/g, ' ').trim().toUpperCase(); guardarLocal(K_PDV, $('pdv').value); };
+$('pdv').oninput = () => $('pdv').classList.remove('falta');
 if (DISPLAY || params.get('pdv')) $('subtitulo').textContent = [DISPLAY, params.get('pdv')].filter(Boolean).join(' · ');
 
 lista = leerLocal(K_LISTA, []);
